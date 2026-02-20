@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ export function Memories({ friendId, memories, onAddMemory, onDeleteMemory }: Me
 
   const handleAddMemory = () => {
     if (newTitle.trim()) {
+      audioService.playSuccess();
       onAddMemory({
         friendId,
         title: newTitle.trim(),
@@ -142,7 +144,10 @@ export function Memories({ friendId, memories, onAddMemory, onDeleteMemory }: Me
                 <Button 
                   size="sm" 
                   variant="ghost"
-                  onClick={() => onDeleteMemory(memory.id)}
+                  onClick={() => {
+                    audioService.playDelete();
+                    onDeleteMemory(memory.id);
+                  }}
                   className="text-red-500"
                 >
                   <Trash2 className="w-4 h-4" />

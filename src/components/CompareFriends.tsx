@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { audioService } from '@/lib/audio';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Friend, Event } from '@/types';
 import { calculateHealthScore } from '@/lib/healthScore';
-import { Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
 interface CompareFriendsProps {
@@ -94,7 +95,10 @@ export function CompareFriends({ friends, events, isOpen, onClose }: CompareFrie
               return (
                 <button
                   key={friend.id}
-                  onClick={() => toggleFriend(friend.id)}
+                  onClick={() => {
+                    audioService.playClick();
+                    toggleFriend(friend.id);
+                  }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
                     isSelected 
                       ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
@@ -155,7 +159,7 @@ export function CompareFriends({ friends, events, isOpen, onClose }: CompareFrie
             )}
 
             {/* Individual Cards */}
-            <div className={`grid gap-4 ${comparisonData.length === 1 ? 'grid-cols-1' : comparisonData.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {comparisonData.map((data, i) => data && (
                 <Card key={data.friend.id} className="p-4" style={{ borderTop: `3px solid ${colors[i]}` }}>
                   <div className="flex items-center gap-3 mb-4">
@@ -216,18 +220,21 @@ export function CompareFriends({ friends, events, isOpen, onClose }: CompareFrie
 
             {/* Summary */}
             {comparisonData.length >= 2 && (
-              <Card className="p-5 bg-gradient-to-br from-violet-500 to-purple-600 text-white">
-                <h4 className="font-semibold mb-3">Quick Insights</h4>
-                <div className="space-y-2 text-sm">
+              <Card className="p-4 sm:p-5 bg-gradient-to-br from-violet-500 to-purple-600 text-white border-0 shadow-lg">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Quick Insights
+                </h4>
+                <div className="space-y-3 text-sm leading-relaxed">
                   {comparisonData.length === 2 && comparisonData[0] && comparisonData[1] && (
                     <>
                       <p>
-                        <strong>{comparisonData[0].healthScore.overall > comparisonData[1].healthScore.overall ? comparisonData[0].friend.name : comparisonData[1].friend.name}</strong> has the healthier relationship based on your logged interactions.
+                        <strong>{comparisonData[0].healthScore.overall > comparisonData[1].healthScore.overall ? comparisonData[0].friend.name : comparisonData[1].friend.name}</strong> shows a higher overall relationship health score in your logs.
                       </p>
                       <p>
                         {comparisonData[0].positiveEvents + comparisonData[1].positiveEvents > comparisonData[0].negativeEvents + comparisonData[1].negativeEvents
-                          ? 'Overall, these relationships bring more positivity than negativity to your life.'
-                          : 'Consider having open conversations to improve the dynamics with these friends.'
+                          ? 'Your interactions with both are generally positive. Keep investing in these bonds!'
+                          : 'You might want to focus on creating more positive shared experiences with them.'
                         }
                       </p>
                     </>

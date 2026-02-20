@@ -69,7 +69,180 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
+  html, body {
+    @apply overflow-x-hidden;
+    min-height: 100vh;
   }
+  body {
+    @apply text-foreground;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background-attachment: fixed;
+  }
+  .dark body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background-attachment: fixed;
+  }
+}
+
+/* =============================================
+   PREMIUM ANIMATIONS & MICRO-INTERACTIONS
+   ============================================= */
+
+/* Page transition */
+@keyframes page-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: page-slide-in 0.28s cubic-bezier(0.22,1,0.36,1) forwards; }
+.page-fade  { animation: page-fade-in  0.25s ease-out forwards; }
+
+/* Staggered list item entries */
+@keyframes item-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.item-enter {
+  opacity: 0;
+  animation: item-enter 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+.item-enter:nth-child(1)   { animation-delay: 0.04s; }
+.item-enter:nth-child(2)   { animation-delay: 0.08s; }
+.item-enter:nth-child(3)   { animation-delay: 0.12s; }
+.item-enter:nth-child(4)   { animation-delay: 0.16s; }
+.item-enter:nth-child(5)   { animation-delay: 0.20s; }
+.item-enter:nth-child(6)   { animation-delay: 0.24s; }
+.item-enter:nth-child(7)   { animation-delay: 0.28s; }
+.item-enter:nth-child(8)   { animation-delay: 0.32s; }
+.item-enter:nth-child(n+9) { animation-delay: 0.36s; }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -500px 0; }
+  100% { background-position: 500px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg,rgba(148,163,184,.08) 25%,rgba(148,163,184,.18) 50%,rgba(148,163,184,.08) 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg,rgba(51,65,85,.3) 25%,rgba(71,85,105,.5) 50%,rgba(51,65,85,.3) 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Card hover shimmer sweep */
+@keyframes card-shimmer-sweep {
+  0%   { transform: translateX(-120%) skewX(-12deg); opacity:1; }
+  100% { transform: translateX(220%)  skewX(-12deg); opacity:0; }
+}
+.card-premium {
+  position: relative;
+  overflow: hidden;
+}
+.card-premium::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+  transform: translateX(-120%) skewX(-12deg);
+  pointer-events: none;
+  z-index: 1;
+}
+.card-premium:hover::before {
+  animation: card-shimmer-sweep 0.55s ease-out forwards;
+}
+
+/* Bell shake */
+@keyframes bell-shake {
+  0%,100% { transform: rotate(0deg); }
+  15% { transform: rotate(-15deg); }
+  30% { transform: rotate(12deg); }
+  45% { transform: rotate(-9deg); }
+  60% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+}
+.bell-shake { animation: bell-shake 0.7s ease-in-out; }
+
+/* Spring tab content */
+@keyframes spring-in {
+  0%   { opacity:0; transform: scale(.97) translateY(4px); }
+  70%  { transform: scale(1.01) translateY(-1px); }
+  100% { opacity:1; transform: scale(1) translateY(0); }
+}
+[role="tabpanel"] { animation: spring-in 0.25s cubic-bezier(0.22,1,0.36,1); }
+
+/* FAB pulse glow */
+@keyframes fab-pulse {
+  0%,100% { box-shadow: 0 8px 32px rgba(139,92,246,.4); }
+  50%      { box-shadow: 0 12px 40px rgba(139,92,246,.7); }
+}
+.fab-pulse { animation: fab-pulse 2.5s ease-in-out infinite; }
+
+/* XP glow badge */
+@keyframes glow {
+  0%,100% { box-shadow: 0 0 4px rgba(139,92,246,.4); }
+  50%      { box-shadow: 0 0 14px rgba(139,92,246,.8); }
+}
+.glow-badge { animation: glow 2s ease-in-out infinite; }
+
+/* Print & PDF Utility */
+@media print {
+  .no-print,
+  button,
+  header,
+  .tabs-list,
+  .fixed,
+  [role="tablist"],
+  .social-buttons {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .min-h-screen {
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+
+  .max-w-7xl {
+    max-width: none !important;
+  }
+
+  .card-premium, .card {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    break-inside: avoid;
+    transform: none !important;
+  }
+
+  .page-enter {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .print-header {
+    display: block !important;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #6366f1;
+    padding-bottom: 1rem;
+    text-align: center;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+}
+
+.print-only {
+  display: none;
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import type { RelationshipGoal, Event } from '@/types';
@@ -39,6 +40,7 @@ export function RelationshipGoals({ friendId, goals, events, onAddGoal, onDelete
 
   const handleAddGoal = () => {
     if (newGoalTitle.trim()) {
+      audioService.playSuccess();
       onAddGoal({
         friendId,
         title: newGoalTitle.trim(),
@@ -166,7 +168,10 @@ export function RelationshipGoals({ friendId, goals, events, onAddGoal, onDelete
                   <Button 
                     size="sm" 
                     variant="ghost"
-                    onClick={() => onDeleteGoal(goal.id)}
+                    onClick={() => {
+                      audioService.playDelete();
+                      onDeleteGoal(goal.id);
+                    }}
                     className="text-red-500"
                   >
                     <Trash2 className="w-4 h-4" />

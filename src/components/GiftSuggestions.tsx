@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import type { Friend } from '@/types';
@@ -20,6 +21,7 @@ export function GiftSuggestions({ friend, onUpdateGiftIdeas, onUpdateInterests }
 
   const handleAddGift = () => {
     if (newGift.trim() && !friend.giftIdeas.includes(newGift.trim())) {
+      audioService.playSuccess();
       onUpdateGiftIdeas([...friend.giftIdeas, newGift.trim()]);
       setNewGift('');
       setShowAddForm(false);
@@ -52,7 +54,10 @@ export function GiftSuggestions({ friend, onUpdateGiftIdeas, onUpdateInterests }
           {INTERESTS.map(interest => (
             <button
               key={interest}
-              onClick={() => handleToggleInterest(interest)}
+              onClick={() => {
+                audioService.playClick();
+                handleToggleInterest(interest);
+              }}
               className={`px-3 py-1.5 rounded-full text-sm transition-all ${
                 friend.interests.includes(interest)
                   ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-2 border-pink-300'
@@ -109,7 +114,10 @@ export function GiftSuggestions({ friend, onUpdateGiftIdeas, onUpdateInterests }
               >
                 {gift}
                 <button
-                  onClick={() => handleRemoveGift(gift)}
+                  onClick={() => {
+                    audioService.playDelete();
+                    handleRemoveGift(gift);
+                  }}
                   className="ml-2 hover:text-red-500"
                 >
                   <X className="w-3 h-3" />

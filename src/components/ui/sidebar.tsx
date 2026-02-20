@@ -7,6 +7,7 @@ import { PanelLeftIcon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
+import { audioService } from "@/lib/audio"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -288,7 +289,10 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       data-slot="sidebar-rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
-      onClick={toggleSidebar}
+      onClick={() => {
+        audioService.playClick();
+        toggleSidebar();
+      }}
       title="Toggle Sidebar"
       className={cn(
         "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
@@ -432,6 +436,10 @@ function SidebarGroupAction({
         "group-data-[collapsible=icon]:hidden",
         className
       )}
+      onClick={(e) => {
+        audioService.playClick();
+        props.onClick?.(e);
+      }}
       {...props}
     />
   )
@@ -518,6 +526,10 @@ function SidebarMenuButton({
       data-size={size}
       data-active={isActive}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      onClick={(e) => {
+        audioService.playClick();
+        props.onClick?.(e);
+      }}
       {...props}
     />
   )
@@ -572,6 +584,10 @@ function SidebarMenuAction({
           "peer-data-[active=true]/menu-button:text-sidebar-accent-foreground group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 md:opacity-0",
         className
       )}
+      onClick={(e) => {
+        audioService.playClick();
+        props.onClick?.(e);
+      }}
       {...props}
     />
   )

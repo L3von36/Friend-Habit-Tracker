@@ -19,6 +19,33 @@ export interface Friend {
   // Introduction tracking
   introducedBy?: string; // friendId
   introducedDate?: string;
+  // Gamification
+  xp: number;
+  level: number;
+  streak: number;
+  lastStreakUpdate?: string;
+}
+
+export interface UserProfile {
+  name: string;
+  birthday?: string;
+  color: string;
+  traits: string[];
+  interests: string[];
+  notes: string;
+  avatar?: string;
+}
+
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  type: 'event' | 'memory' | 'contact' | 'gift' | 'goal';
+  targetCount: number;
+  currentCount: number;
+  rewardXP: number;
+  completed: boolean;
+  expiresAt: string;
 }
 
 export interface Event {
@@ -38,6 +65,8 @@ export interface Event {
   resolutionNotes?: string;
   // Group events
   participantIds?: string[];
+  // Rich Media
+  attachments?: string[]; // IDs of media items in IndexedDB
 }
 
 export interface Reminder {
@@ -78,6 +107,7 @@ export interface Memory {
   description: string;
   date: string;
   tags: string[];
+  attachments?: string[]; // IDs of media items in IndexedDB
 }
 
 export interface GratitudeEntry {

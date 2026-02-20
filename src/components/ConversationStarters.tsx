@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import type { Friend, Event } from '@/types';
 import { generateConversationStarters } from '@/lib/aiHelpers';
 import { RefreshCw, Copy, Check, Sparkles, Lightbulb } from 'lucide-react';
@@ -22,11 +23,13 @@ export function ConversationStarters({ friend, events }: ConversationStartersPro
   const allStarters = starters.length > 0 ? starters : generatedStarters;
 
   const handleRegenerate = () => {
+    audioService.playClick();
     const newStarters = generateConversationStarters(friend, events);
     setStarters(newStarters);
   };
 
   const handleCopy = (text: string, index: number) => {
+    audioService.playSuccess();
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
     toast.success('Copied to clipboard!');

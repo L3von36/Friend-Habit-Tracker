@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import { Textarea } from '@/components/ui/textarea';
 import type { GratitudeEntry } from '@/types';
 import { Heart, Plus, Calendar, Quote, Trash2, Sparkles } from 'lucide-react';
@@ -32,11 +33,13 @@ export function GratitudeJournal({ friendId, entries, friendName, onAddEntry, on
   const friendEntries = entries.filter(e => e.friendId === friendId);
 
   const handleNewPrompt = () => {
+    audioService.playClick();
     setPromptIndex(Math.floor(Math.random() * GRATITUDE_PROMPTS.length));
   };
 
   const handleAddEntry = () => {
     if (newEntry.trim()) {
+      audioService.playSuccess();
       onAddEntry({
         friendId,
         content: newEntry.trim(),
@@ -143,7 +146,10 @@ export function GratitudeJournal({ friendId, entries, friendName, onAddEntry, on
                 <Button 
                   size="sm" 
                   variant="ghost"
-                  onClick={() => onDeleteEntry(entry.id)}
+                  onClick={() => {
+                    audioService.playDelete();
+                    onDeleteEntry(entry.id);
+                  }}
                   className="text-red-500"
                 >
                   <Trash2 className="w-4 h-4" />

@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { X, Plus, Users } from 'lucide-react';
+import { AudioRecorder } from './Media/AudioRecorder';
+import { PhotoUpload } from './Media/PhotoUpload';
+import { MediaGallery } from './Media/MediaGallery';
 import type { Event, Friend } from '@/types';
 import { CATEGORIES, SENTIMENTS, COMMON_TAGS, ENERGY_IMPACTS } from '@/types';
 
@@ -27,6 +31,16 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
   const [newTag, setNewTag] = useState('');
   const [participantIds, setParticipantIds] = useState<string[]>([]);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [attachments, setAttachments] = useState<string[]>([]);
+
+  const handleMediaSaved = (mediaId: string) => {
+    setAttachments(prev => [...prev, mediaId]);
+  };
+
+  const handleMediaDeleted = (mediaId: string) => {
+    setAttachments(prev => prev.filter(id => id !== mediaId));
+    // Ideally we should also delete from IndexedDB here, or mark for deletion
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +57,7 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
       energyImpact,
       tags,
       participantIds: participantIds.length > 0 ? [...participantIds, friendId] : undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
   };
 
@@ -95,7 +110,7 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="date">Date</Label>
           <Input
@@ -104,6 +119,7 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
+            className="w-full"
           />
         </div>
         <div className="space-y-2">
@@ -113,7 +129,10 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
               <button
                 key={level}
                 type="button"
-                onClick={() => setImportance(level as Event['importance'])}
+                onClick={() => {
+                  audioService.playClick();
+                  setImportance(level as Event['importance']);
+                }}
                 className={`flex-1 h-10 rounded-lg border-2 transition-all ${
                   importance >= level 
                     ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30 text-violet-700' 
@@ -129,19 +148,22 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
 
       <div className="space-y-2">
         <Label>Category</Label>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 xs:grid-cols-4 gap-2">
           {Object.entries(CATEGORIES).map(([key, { label, icon }]) => (
             <button
               key={key}
               type="button"
-              onClick={() => setCategory(key as Event['category'])}
-              className={`p-2 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+              onClick={() => {
+                audioService.playClick();
+                setCategory(key as Event['category']);
+              }}
+              className={`p-2 sm:p-3 rounded-lg border-2 transition-all flex items-center xs:flex-col justify-center gap-2 xs:gap-1 ${
                 category === key 
                   ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
                   : 'border-slate-200 dark:border-slate-700 hover:border-violet-300'
               }`}
             >
-              <span className="text-lg">{icon}</span>
+              <span className="text-xl sm:text-2xl">{icon}</span>
               <span className="text-xs font-medium">{label}</span>
             </button>
           ))}
@@ -150,20 +172,23 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
 
       <div className="space-y-2">
         <Label>Sentiment</Label>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {Object.entries(SENTIMENTS).map(([key, { label, icon }]) => (
             <button
               key={key}
               type="button"
-              onClick={() => setSentiment(key as Event['sentiment'])}
-              className={`flex-1 p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+              onClick={() => {
+                audioService.playClick();
+                setSentiment(key as Event['sentiment']);
+              }}
+              className={`p-2 sm:p-3 rounded-lg border-2 transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                 sentiment === key 
                   ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
                   : 'border-slate-200 dark:border-slate-700 hover:border-violet-300'
               }`}
             >
-              <span>{icon}</span>
-              <span className="text-sm font-medium">{label}</span>
+              <span className="text-xl sm:text-2xl">{icon}</span>
+              <span className="text-xs sm:text-sm font-medium">{label}</span>
             </button>
           ))}
         </div>
@@ -171,20 +196,23 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
 
       <div className="space-y-2">
         <Label>Energy Impact</Label>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {Object.entries(ENERGY_IMPACTS).map(([key, { label, icon }]) => (
             <button
               key={key}
               type="button"
-              onClick={() => setEnergyImpact(key as Event['energyImpact'])}
-              className={`flex-1 p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+              onClick={() => {
+                audioService.playClick();
+                setEnergyImpact(key as Event['energyImpact']);
+              }}
+              className={`p-2 sm:p-3 rounded-lg border-2 transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                 energyImpact === key 
                   ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
                   : 'border-slate-200 dark:border-slate-700 hover:border-violet-300'
               }`}
             >
-              <span>{icon}</span>
-              <span className="text-sm font-medium">{label}</span>
+              <span className="text-xl sm:text-2xl">{icon}</span>
+              <span className="text-xs sm:text-sm font-medium">{label}</span>
             </button>
           ))}
         </div>
@@ -213,7 +241,10 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
                 <button
                   key={friend.id}
                   type="button"
-                  onClick={() => toggleParticipant(friend.id)}
+                  onClick={() => {
+                    audioService.playClick();
+                    toggleParticipant(friend.id);
+                  }}
                   className={`px-3 py-1.5 rounded-full text-sm transition-all ${
                     participantIds.includes(friend.id)
                       ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-2 border-violet-300'
@@ -224,6 +255,23 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
                 </button>
               ))}
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Attachments</Label>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <AudioRecorder onSave={handleMediaSaved} />
+          <PhotoUpload onSave={handleMediaSaved} />
+        </div>
+        
+        {attachments.length > 0 && (
+          <div className="mt-2 bg-slate-50 dark:bg-slate-700/30 p-2 rounded-lg">
+             <MediaGallery 
+                mediaIds={attachments} 
+                onDelete={handleMediaDeleted} 
+             />
           </div>
         )}
       </div>
@@ -252,10 +300,13 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
           <p className="text-xs text-slate-500 mb-2">Common tags (click to add):</p>
           <div className="flex flex-wrap gap-1.5">
             {COMMON_TAGS.filter(tag => !tags.includes(tag)).slice(0, 10).map((tag) => (
-              <button
+               <button
                 key={tag}
                 type="button"
-                onClick={() => addCommonTag(tag)}
+                onClick={() => {
+                  audioService.playClick();
+                  addCommonTag(tag);
+                }}
                 className="px-2 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:text-violet-600 dark:hover:text-violet-300 transition-colors"
               >
                 + {tag}
@@ -272,7 +323,10 @@ export function AddEventForm({ friendId, friends, onSubmit, onCancel }: AddEvent
                 {tag}
                 <button
                   type="button"
-                  onClick={() => removeTag(tag)}
+                  onClick={() => {
+                    audioService.playDelete();
+                    removeTag(tag);
+                  }}
                   className="ml-1 hover:text-red-500"
                 >
                   <X className="w-3 h-3" />

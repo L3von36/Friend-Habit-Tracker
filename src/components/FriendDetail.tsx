@@ -1,10 +1,13 @@
 import type { Friend, Event, RelationshipGoal, Memory, GratitudeEntry } from '@/types';
 import { CATEGORIES, SENTIMENTS } from '@/types';
+import { audioService } from '@/lib/audio';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles } from 'lucide-react';
+import { SmartDrafts } from './SmartDrafts';
+import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles, Brain, Paperclip, Share2, BookOpen, Users2, Printer } from 'lucide-react';
+import { MediaGallery } from './Media/MediaGallery';
 import { calculateHealthScore } from '@/lib/healthScore';
 import { HealthScoreCard } from './HealthScoreCard';
 import { MoodTrends } from './MoodTrends';
@@ -12,12 +15,20 @@ import { EnergyTracker } from './EnergyTracker';
 import { ConversationStarters } from './ConversationStarters';
 import { GiftSuggestions } from './GiftSuggestions';
 import { RelationshipGoals } from './RelationshipGoals';
+import { generatePsychologicalProfile } from '@/lib/profiling';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Memories } from './Memories';
 import { GratitudeJournal } from './GratitudeJournal';
 import { RelationshipForecast } from './RelationshipForecast';
+import { PsychologicalProfile } from './PsychologicalProfile';
+import { ShareFriendCard } from './Social/ShareFriendCard';
+import { CollaborativeNotes } from './Social/CollaborativeNotes';
+import { IntroduceFriends } from './Social/IntroduceFriends';
+import { useState, useMemo } from 'react';
 
 interface FriendDetailProps {
   friend: Friend;
+  allFriends?: Friend[];
   events: Event[];
   stats: {
     totalEvents: number;
@@ -28,6 +39,7 @@ interface FriendDetailProps {
   goals: RelationshipGoal[];
   memories: Memory[];
   gratitudeEntries: GratitudeEntry[];
+  userName?: string;
   onBack: () => void;
   onAddEvent: () => void;
   onDeleteEvent: (eventId: string) => void;
@@ -40,6 +52,7 @@ interface FriendDetailProps {
   onDeleteGratitude: (entryId: string) => void;
   onUpdateGiftIdeas: (friendId: string, ideas: string[]) => void;
   onUpdateInterests: (friendId: string, interests: string[]) => void;
+  onIntroduce?: (eventA: any, eventB: any) => void;
 }
 
 export function FriendDetail({ 
@@ -61,9 +74,16 @@ export function FriendDetail({
   onDeleteGratitude,
   onUpdateGiftIdeas,
   onUpdateInterests,
+  onIntroduce,
+  allFriends = [],
+  userName = 'Me',
 }: FriendDetailProps) {
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isIntroduceOpen, setIsIntroduceOpen] = useState(false);
   const initials = friend.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const healthScore = calculateHealthScore(friend, events);
+  const profile = useMemo(() => generatePsychologicalProfile(friend, events, memories), [friend, events, memories]);
   
   const sentimentScore = stats.totalEvents > 0 
     ? ((stats.positiveEvents - stats.negativeEvents) / stats.totalEvents * 100).toFixed(0)
@@ -77,30 +97,61 @@ export function FriendDetail({
   };
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20 page-enter">
       {/* Header */}
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-                <ArrowLeft className="w-5 h-5" />
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full w-8 h-8 sm:w-10 sm:h-10">
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl ${friend.color} flex items-center justify-center text-white font-bold shadow-lg`}>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl ${friend.color} flex items-center justify-center text-white text-xs sm:text-base font-bold shadow-lg`}>
                   {initials}
                 </div>
-                <div>
-                  <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">{friend.name}</h1>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{friend.relationship}</p>
+                <div className="min-w-0">
+                  <h1 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{friend.name}</h1>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">{friend.relationship}</p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 cursor-help transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <span className="text-[10px]">{profile.archetypeIcon}</span>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${profile.archetypeColor}`}>
+                              {profile.archetype}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs text-xs">
+                          {profile.archetypeDescription}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Button variant="ghost" size="icon" title="Share Profile" onClick={() => { audioService.playClick(); setIsShareOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                <Share2 className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" title="Shared Notes" onClick={() => { audioService.playClick(); setIsNotesOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                <BookOpen className="w-4 h-4" />
+              </Button>
+              {allFriends.length > 1 && (
+                <Button variant="ghost" size="icon" title="Introduce to a Friend" onClick={() => { audioService.playClick(); setIsIntroduceOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                  <Users2 className="w-4 h-4" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" title="Print Report" onClick={() => { audioService.playClick(); window.print(); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                <Printer className="w-4 h-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={onEditFriend} className="rounded-full">
                 <Edit2 className="w-4 h-4" />
               </Button>
-              <Button 
+              <Button
                 onClick={onAddEvent}
                 className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
               >
@@ -168,46 +219,50 @@ export function FriendDetail({
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="flex flex-wrap w-full gap-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-1 rounded-lg">
-            <TabsTrigger value="overview" className="flex items-center gap-1 text-xs">
+          <TabsList className="flex w-full overflow-x-auto no-scrollbar bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-1 rounded-lg">
+            <TabsTrigger value="overview" className="flex-1 min-w-[80px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Activity className="w-3 h-3" />
-              Overview
+              <span className="hidden xs:inline">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="health" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="health" className="flex-1 min-w-[70px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <BarChart3 className="w-3 h-3" />
-              Health
+              <span className="hidden xs:inline">Health</span>
             </TabsTrigger>
-            <TabsTrigger value="mood" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="mood" className="flex-1 min-w-[70px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Smile className="w-3 h-3" />
-              Mood
+              <span className="hidden xs:inline">Mood</span>
             </TabsTrigger>
-            <TabsTrigger value="energy" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="energy" className="flex-1 min-w-[70px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Zap className="w-3 h-3" />
-              Energy
+              <span className="hidden xs:inline">Energy</span>
             </TabsTrigger>
-            <TabsTrigger value="conversation" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="conversation" className="flex-1 min-w-[70px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <MessageCircle className="w-3 h-3" />
-              Chat
+              <span className="hidden xs:inline">Chat</span>
             </TabsTrigger>
-            <TabsTrigger value="gifts" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="gifts" className="flex-1 min-w-[70px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Gift className="w-3 h-3" />
-              Gifts
+              <span className="hidden xs:inline">Gifts</span>
             </TabsTrigger>
-            <TabsTrigger value="goals" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="goals" className="flex-1 min-w-[70px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Target className="w-3 h-3" />
-              Goals
+              <span className="hidden xs:inline">Goals</span>
             </TabsTrigger>
-            <TabsTrigger value="memories" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="memories" className="flex-1 min-w-[80px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Camera className="w-3 h-3" />
-              Memories
+              <span className="hidden xs:inline">Memories</span>
             </TabsTrigger>
-            <TabsTrigger value="gratitude" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="gratitude" className="flex-1 min-w-[80px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Heart className="w-3 h-3" />
-              Gratitude
+              <span className="hidden xs:inline">Gratitude</span>
             </TabsTrigger>
-            <TabsTrigger value="forecast" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="forecast" className="flex-1 min-w-[80px] flex items-center justify-center gap-1 text-xs px-3 py-2">
               <Sparkles className="w-3 h-3" />
-              Forecast
+              <span className="hidden xs:inline">Forecast</span>
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="flex-1 min-w-[80px] flex items-center justify-center gap-1 text-xs px-3 py-2">
+              <Brain className="w-3 h-3" />
+              <span className="hidden xs:inline">Profile</span>
             </TabsTrigger>
           </TabsList>
 
@@ -293,7 +348,10 @@ export function FriendDetail({
                           <Calendar className="w-8 h-8 text-slate-400" />
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 mb-4">No events logged yet</p>
-                        <Button onClick={onAddEvent} variant="outline">
+                        <Button onClick={() => {
+                          audioService.playClick();
+                          onAddEvent();
+                        }} variant="outline">
                           <Plus className="w-4 h-4 mr-2" />
                           Log First Event
                         </Button>
@@ -321,6 +379,17 @@ export function FriendDetail({
                                     </span>
                                   </div>
                                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{event.description}</p>
+                                  
+                                  {event.attachments && event.attachments.length > 0 && (
+                                    <div className="mb-3">
+                                      <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
+                                         <Paperclip className="w-3 h-3" />
+                                         <span>Attachments</span>
+                                      </div>
+                                      <MediaGallery mediaIds={event.attachments} readonly />
+                                    </div>
+                                  )}
+
                                   <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-500">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="w-3 h-3" />
@@ -340,7 +409,10 @@ export function FriendDetail({
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
-                                  onClick={() => onDeleteEvent(event.id)}
+                                  onClick={() => {
+                                    audioService.playDelete();
+                                    onDeleteEvent(event.id);
+                                  }}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -375,8 +447,11 @@ export function FriendDetail({
           </TabsContent>
 
           <TabsContent value="conversation">
-            <div className="max-w-2xl mx-auto">
-              <ConversationStarters friend={friend} events={events} />
+            <div className="max-w-2xl mx-auto space-y-8">
+              <SmartDrafts friend={friend} events={events} />
+              <div className="border-t border-slate-200 dark:border-slate-700/50 pt-8">
+                  <ConversationStarters friend={friend} events={events} />
+              </div>
             </div>
           </TabsContent>
 
@@ -430,8 +505,40 @@ export function FriendDetail({
               <RelationshipForecast friend={friend} events={events} />
             </div>
           </TabsContent>
+
+          <TabsContent value="profile">
+            <div className="max-w-3xl mx-auto">
+              <PsychologicalProfile friend={friend} events={events} memories={memories} />
+            </div>
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Social Modals */}
+      <ShareFriendCard
+        friend={friend}
+        events={events}
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+      />
+      <CollaborativeNotes
+        friend={friend}
+        userName={userName}
+        isOpen={isNotesOpen}
+        onClose={() => setIsNotesOpen(false)}
+      />
+      {allFriends.length > 1 && (
+        <IntroduceFriends
+          sourceFriend={friend}
+          allFriends={allFriends}
+          isOpen={isIntroduceOpen}
+          onClose={() => setIsIntroduceOpen(false)}
+          onIntroduce={(eventA, eventB) => {
+            if (onIntroduce) onIntroduce(eventA, eventB);
+            setIsIntroduceOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

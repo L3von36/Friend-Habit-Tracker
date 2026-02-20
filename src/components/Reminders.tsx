@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 import { Badge } from '@/components/ui/badge';
 import type { Reminder, Friend } from '@/types';
 import { Bell, X, Gift, MessageCircle, Calendar } from 'lucide-react';
@@ -108,7 +109,10 @@ export function Reminders({ reminders, friends, onDismiss, onSelectFriend }: Rem
                   <Button 
                     size="sm" 
                     variant="ghost"
-                    onClick={() => onDismiss(reminder.id)}
+                    onClick={() => {
+                      audioService.playDelete();
+                      onDismiss(reminder.id);
+                    }}
                   >
                     <X className="w-4 h-4" />
                   </Button>

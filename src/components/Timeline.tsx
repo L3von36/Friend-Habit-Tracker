@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Tag, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { audioService } from '@/lib/audio';
 
 interface TimelineProps {
   events: Event[];
@@ -109,7 +110,10 @@ export function Timeline({ events, friends, onDelete }: TimelineProps) {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 flex-shrink-0"
-                          onClick={() => onDelete(event.id)}
+                          onClick={() => {
+                            audioService.playDelete();
+                            onDelete(event.id);
+                          }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
