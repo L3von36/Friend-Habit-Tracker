@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Brain, Send, User, Bot, Sparkles, History, Search } from 'lucide-react';
+import { Brain, Send, User, Bot, Sparkles, History, Search, Mic, MicOff } from 'lucide-react';
 import type { Friend, Event, Memory } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import { semanticSearch } from '@/lib/semanticSearch';
+import { toast } from 'sonner';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -29,7 +31,34 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(semanticSearch.status);
+  const [aiProgress, setAiProgress] = useState(semanticSearch.initializationProgress);
+  const [aiMessage, setAiMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = semanticSearch.addProgressListener((payload: any) => {
+      if (payload.status === 'init' || payload.status === 'loading') {
+        setAiStatus('loading');
+        setAiMessage(`Loading AI model (${payload.file})...`);
+      } else if (payload.status === 'progress') {
+        setAiStatus('loading');
+        setAiProgress(payload.progress);
+        setAiMessage(`Downloading: ${payload.progress.toFixed(1)}%`);
+      } else if (payload.status === 'done' || payload.status === 'ready') {
+        setAiStatus('ready');
+        setAiProgress(100);
+        setAiMessage('AI is ready');
+      } else if (payload.status === 'error') {
+        setAiStatus('error');
+        setAiMessage('Failed to load AI model');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -37,9 +66,85 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
     }
   }, [messages]);
 
+  // Handle Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error !== 'no-speech') {
+          toast.error(`Voice error: ${event.error}`);
+        }
+      };
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => (prev ? `${prev} ${transcript}` : transcript));
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      if (!recognitionRef.current) {
+        toast.error("Speech recognition is not supported in this browser.");
+        return;
+      }
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error('Failed to start recognition', e);
+      }
+    }
+  }, [isListening]);
+
   const processQuery = (query: string) => {
-    const q = query.toLowerCase();
-    
+    const q = query.toLowerCase().trim();
+
+    // --- 0. Intent Detection: Conversational inputs ---
+    const greetings = ['hi', 'hello', 'hey', 'sup', 'hiya', 'howdy', 'yo', 'good morning', 'good evening', 'good afternoon'];
+    if (greetings.some(g => q === g || q.startsWith(g + ' ') || q.startsWith(g + '!'))) {
+      const hour = new Date().getHours();
+      const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+      return `${timeGreeting}! 👋 I'm your Friendship AI. I know all about your ${friends.length} friend${friends.length !== 1 ? 's' : ''} and ${events.length} logged interaction${events.length !== 1 ? 's' : ''}. Try asking me:\n• "When did I last see [name]?"\n• "What memories do I have with [name]?"\n• "Who has the highest streak?"\n• "What's my most recent event?"`;
+    }
+
+    const thankYou = ['thanks', 'thank you', 'thx', 'ty', 'great', 'awesome', 'perfect', 'cool', 'nice'];
+    if (thankYou.some(t => q === t || q.startsWith(t + '!'))) {
+      return "Happy to help! 😊 Feel free to ask me anything else about your friends and interactions.";
+    }
+
+    const helpPatterns = ['help', 'what can you do', 'what do you know', 'commands', 'how do i', 'what should i ask'];
+    if (helpPatterns.some(h => q.includes(h))) {
+      return `Here's what I can help you with:\n\n🔍 **Friend Lookup** — "Tell me about [name]", "Last time I saw [name]"\n💬 **Memories** — "What memories do I have with [name]?"\n📊 **Stats** — "Who has the highest streak?", "Most recent event"\n🏆 **Insights** — "Most frequent activity?", "How many friends do I have?"`;
+    }
+
+    if (q.includes('how many friends') || q === 'friends count' || q.includes('total friends')) {
+      return `You have ${friends.length} friend${friends.length !== 1 ? 's' : ''} tracked! You've logged ${events.length} total interactions and ${memories.length} memories across your social circle.`;
+    }
+
+    if (q.includes('who') && (q.includes('birthday') || q.includes('born'))) {
+      const withBirthday = friends.filter(f => f.birthday);
+      if (withBirthday.length > 0) {
+        const upcoming = withBirthday
+          .map(f => ({ f, date: new Date(f.birthday!) }))
+          .sort((a, b) => a.date.getMonth() - b.date.getMonth() || a.date.getDate() - b.date.getDate());
+        return `${upcoming.length} friend${upcoming.length !== 1 ? 's have' : ' has'} birthdays saved. Next up: ${upcoming[0].f.name} 🎂`;
+      }
+      return "No birthdays have been saved yet. You can add them in the friend detail view!";
+    }
+
     // 1. Find the mentioned friend
     const mentionedFriend = friends.find(f => q.includes(f.name.toLowerCase()));
     
@@ -99,8 +204,9 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
       }
     }
 
-    return "I'm not quite sure about that. Try asking about a specific friend by name, or ask about your streaks and recent activity!";
+    return `I'm not sure I understood that. 🤔 Try mentioning a friend's name, or ask things like:\n• "Last time I saw [friend name]"\n• "Who has the longest streak?"\n• "How many friends do I have?"\n• Type "help" to see everything I can do!`;
   };
+
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -138,13 +244,30 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
             <div>
               <CardTitle className="text-sm font-bold">Friendship Assistant</CardTitle>
               <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">AI Active</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'ready' ? 'bg-emerald-500' : aiStatus === 'error' ? 'bg-red-500' : 'bg-amber-500 animate-pulse'}`} />
+                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                  {aiStatus === 'ready' ? 'AI Active' : aiStatus === 'loading' ? 'Initializing...' : aiStatus === 'error' ? 'AI Error' : 'AI Offline'}
+                </span>
               </div>
             </div>
           </div>
-          <Sparkles className="w-4 h-4 text-violet-500 animate-pulse" />
+          <Sparkles className={`w-4 h-4 text-violet-500 ${aiStatus === 'loading' ? 'animate-spin' : 'animate-pulse'}`} />
         </div>
+        
+        {aiStatus === 'loading' && (
+          <div className="mt-3 space-y-1.5">
+            <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+              <span className="truncate max-w-[180px]">{aiMessage}</span>
+              <span>{aiProgress.toFixed(0)}%</span>
+            </div>
+            <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-violet-500 transition-all duration-300 ease-out"
+                style={{ width: `${aiProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
@@ -186,13 +309,27 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
             className="flex gap-2"
           >
-            <Input 
-              placeholder="Ask about Sarah, streaks, recent events..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="flex-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus-visible:ring-violet-500 h-10 text-sm"
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-            />
+            <div className="relative flex-1">
+              <Input 
+                placeholder="Ask about Sarah, streaks, recent events..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="w-full bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus-visible:ring-violet-500 h-10 text-sm pr-10"
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+              />
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${
+                  isListening 
+                    ? 'bg-red-500 text-white animate-pulse' 
+                    : 'text-slate-400 hover:text-violet-500'
+                }`}
+                title={isListening ? 'Stop listening' : 'Voice Search'}
+              >
+                {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              </button>
+            </div>
             <Button 
               type="submit"
               size="icon"

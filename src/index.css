@@ -24,14 +24,6 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.625rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
@@ -54,14 +46,41 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Vibrant Theme */
+  [data-theme='vibrant'] {
+    --background: 260 100% 98%;
+    --foreground: 260 50% 10%;
+    --primary: 260 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --accent: 300 100% 95%;
+    --border: 260 100% 92%;
+  }
+
+  /* Minimalist Theme */
+  [data-theme='minimalist'] {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --border: 0 0% 90%;
+    --radius: 0rem;
+    --ring: 0 0% 0%;
+  }
+
+  /* Retro Theme */
+  [data-theme='retro'] {
+    --background: 230 35% 7%;
+    --foreground: 180 100% 80%;
+    --primary: 320 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --card: 230 35% 10%;
+    --card-foreground: 180 100% 90%;
+    --accent: 180 100% 50%;
+    --border: 320 100% 30%;
   }
 }
 

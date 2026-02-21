@@ -17,12 +17,14 @@ clientsClaim();
 // 3. Push Notifications Listener
 self.addEventListener('push', (event) => {
     const data = event.data?.json() ?? {};
-    const title = data.title ?? 'Friend Habit Tracker';
+    const title = data.title ?? 'Friendship Insight';
     const options = {
-        body: data.body ?? 'Check in with your friends!',
+        body: data.body ?? 'Gemma has a new weekly focus for your friendships!',
         icon: '/icons/icon-192x192.png',
         badge: '/favicon.ico',
+        tag: data.tag ?? 'friendship-insight',
         data: data.url ?? '/',
+        vibrate: [100, 50, 100],
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -36,7 +38,7 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-// 5.// Background Synchronization
+// 5. Background Synchronization
 self.addEventListener('sync', (event: any) => {
     if (event.tag === 'sync-gdrive') {
         event.waitUntil(
@@ -44,6 +46,17 @@ self.addEventListener('sync', (event: any) => {
                 clients.forEach((client) => {
                     client.postMessage({
                         type: 'SYNC_GDRIVE',
+                        timestamp: new Date().toISOString()
+                    });
+                });
+            })
+        );
+    } else if (event.tag === 'sync-intelligence') {
+        event.waitUntil(
+            self.clients.matchAll().then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({
+                        type: 'SYNC_INTELLIGENCE',
                         timestamp: new Date().toISOString()
                     });
                 });

@@ -3,39 +3,18 @@ import { CATEGORIES } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Users, Activity, TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react';
 
+import { useStats } from '@/hooks/useStats';
+
 interface DashboardProps {
-  friends: Friend[];
-  events: Event[];
+  // friends and events now consumed from useStore/useStats internally or passed if needed
+  friends?: Friend[];
+  events?: Event[];
 }
 
-export function Dashboard({ friends, events }: DashboardProps) {
-  const stats = {
-    totalFriends: friends.length,
-    totalEvents: events.length,
-    positiveEvents: events.filter(e => e.sentiment === 'positive').length,
-    negativeEvents: events.filter(e => e.sentiment === 'negative').length,
-    neutralEvents: events.filter(e => e.sentiment === 'neutral').length,
-  };
+export function Dashboard({ friends: propsFriends, events: propsEvents }: DashboardProps) {
+  const { aggregateStats: stats, tagStats: sortedTags, recentEvents } = useStats();
 
-  const recentEvents = [...events]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
-
-  const topTags = events
-    .flatMap(e => e.tags)
-    .reduce((acc, tag) => {
-      acc[tag] = (acc[tag] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-  const sortedTags = Object.entries(topTags)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-
-  const categoryStats = events.reduce((acc, e) => {
-    acc[e.category] = (acc[e.category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const categoryStats = stats.categoryCounts;
 
   return (
     <div className="space-y-6">

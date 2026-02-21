@@ -7,7 +7,10 @@ env.useBrowserCache = true;
 
 class SemanticSearchService {
   private static instance: SemanticSearchService;
-  private worker: Worker | null = null;
+  public worker: Worker | null = null;
+  private progressListeners: ((progress: any) => void)[] = [];
+  public initializationProgress = 0;
+  public status: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
 
   private constructor() {
     if (typeof window !== 'undefined') {
@@ -15,13 +18,33 @@ class SemanticSearchService {
         type: 'module',
       });
 
-      this.worker.onmessage = (event) => {
-        const { type } = event.data;
+      this.worker.onmessage = (event: MessageEvent) => {
+        const { type, payload } = event.data;
+        if (type === 'init_progress') {
+          if (payload.status === 'progress') {
+            this.initializationProgress = payload.progress;
+          }
+          this.progressListeners.forEach(l => l(payload));
+        }
         if (type === 'init_complete') {
+          this.status = 'ready';
+          this.initializationProgress = 100;
+          this.progressListeners.forEach(l => l({ status: 'done', progress: 100 }));
           console.log('Semantic Search Model Initialized');
+        }
+        if (type === 'error') {
+          this.status = 'error';
+          this.progressListeners.forEach(l => l({ status: 'error', message: payload }));
         }
       };
     }
+  }
+
+  public addProgressListener(listener: (progress: any) => void) {
+    this.progressListeners.push(listener);
+    return () => {
+      this.progressListeners = this.progressListeners.filter(l => l !== listener);
+    };
   }
 
   public static getInstance(): SemanticSearchService {

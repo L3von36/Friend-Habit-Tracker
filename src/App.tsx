@@ -4,14 +4,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Users, Activity, BarChart3, UserPlus, Filter, Bell, Download, GitCompare, Users2, Volume2, VolumeX, Calendar } from 'lucide-react';
+import { 
+  Plus, Search, Users, Activity, BarChart3, UserPlus, Filter, Bell, 
+  Download, GitCompare, Users2, Volume2, VolumeX, Calendar, 
+  Sparkles as SparklesIcon, BrainCircuit, LayoutGrid, List 
+} from 'lucide-react';
 import type { Friend, Event, Reminder, RelationshipGoal, Memory, GratitudeEntry, UserProfile, Quest } from '@/types';
 import { CATEGORIES } from '@/types';
 import { useStorage } from '@/hooks/useStorage';
+import { useStore } from '@/store/useStore';
+import { useStats } from '@/hooks/useStats';
 import { FriendCard } from '@/components/FriendCard';
 import { FriendDetail } from '@/components/FriendDetail';
 import { AddFriendForm } from '@/components/AddFriendForm';
 import { AddEventForm } from '@/components/AddEventForm';
+import { Dashboard } from '@/components/Dashboard';
+import { DeepInsightsCard } from '@/components/AI/DeepInsightsCard';
 // Lazy load heavy components for performance optimization
 const Timeline = lazy(() => import('@/components/Timeline').then(m => ({ default: m.Timeline })));
 const Insights = lazy(() => import('@/components/Insights').then(m => ({ default: m.Insights })));
@@ -29,14 +37,14 @@ import { Toaster, toast } from 'sonner';
 import { semanticSearch } from '@/lib/semanticSearch';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { BrainCircuit } from 'lucide-react';
+
 import { updateFriendXP, checkStreak, generateQuests, calculateEventXP } from '@/lib/gamification';
 import { generateId } from '@/lib/id';
 import { QuestBoard } from '@/components/Gamification/QuestBoard';
 import { AppLock } from '@/components/Security/AppLock';
 import { SecuritySettings } from '@/components/Security/SecuritySettings';
 import { UserProfileView } from '@/components/MyProfile/UserProfileView';
-import { LayoutGrid, List, Sparkles as SparklesIcon } from 'lucide-react';
+
 import { FriendListRow } from '@/components/FriendListRow';
 import { ThemeToggle } from '@/components/Header/ThemeToggle';
 import { UserProfile as HeaderUserProfile } from '@/components/Header/UserProfile';
@@ -59,14 +67,22 @@ const LoadingFallback = () => (
 );
 
 function App() {
-  const [friends, setFriends] = useStorage<Friend[]>('friends', []);
-  const [events, setEvents] = useStorage<Event[]>('events', []);
-  const [reminders, setReminders] = useStorage<Reminder[]>('reminders', []);
-  const [goals, setGoals] = useStorage<RelationshipGoal[]>('goals', []);
-  const [memories, setMemories] = useStorage<Memory[]>('memories', []);
-  const [gratitudeEntries, setGratitudeEntries] = useStorage<GratitudeEntry[]>('gratitude', []);
-  const [quests, setQuests] = useStorage<Quest[]>('quests', []);
-  const [pinnedFriendIds, setPinnedFriendIds] = useStorage<string[]>('pinned-friends', []);
+  // Centralized Store
+  const {
+    friends, setFriends,
+    events, setEvents,
+    reminders, setReminders,
+    goals, setGoals,
+    memories, setMemories,
+    gratitudeEntries, setGratitudeEntries,
+    quests, setQuests,
+    pinnedFriendIds, setPinnedFriendIds,
+    userProfile, setUserProfile,
+    isAuthenticated, setIsAuthenticated,
+    isGuest, setIsGuest,
+    login, logout
+  } = useStore();
+
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('friends');
@@ -89,27 +105,10 @@ function App() {
   const [isAutoSyncEnabled] = useStorage<boolean>('auto-sync-enabled', false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  const [isAuthenticated, setIsAuthenticated] = useStorage<boolean>('is-authenticated', false);
-  const [isGuest, setIsGuest] = useStorage<boolean>('is-guest', false);
-  
-  const [userProfile, setUserProfile] = useStorage<UserProfile>('user-profile', {
-    name: 'Hero',
-    color: 'bg-violet-500',
-    traits: ['Growth Mindset', 'Empathetic'],
-    interests: ['Psychology', 'Personal Growth'],
-    notes: 'I create meaningful connections and track my personal relationship growth.'
-  });
-
   const handleLogin = useCallback((googleUser: { name: string; email: string; picture: string }) => {
-    setUserProfile(prev => ({
-      ...prev,
-      name: googleUser.name,
-      avatar: googleUser.picture,
-    }));
-    setIsAuthenticated(true);
-    setIsGuest(false);
+    login({ name: googleUser.name, avatar: googleUser.picture });
     toast.success(`Welcome back, ${googleUser.name}!`);
-  }, [setUserProfile, setIsAuthenticated, setIsGuest]);
+  }, [login]);
 
   // Integrated Cloud Auto-Sync
   const autoSync = useAutoSync({
@@ -156,26 +155,11 @@ function App() {
   }, [performSync]);
 
   const handleLogout = useCallback(() => {
-    setIsAuthenticated(false);
-    setIsGuest(false);
+    logout();
     toast.info('Signed out successfully');
-  }, [setIsAuthenticated, setIsGuest]);
+  }, [logout]);
 
-  const aggregateStats = useMemo(() => {
-    const categoryCounts = events.reduce((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return {
-      totalFriends: friends.length,
-      totalEvents: events.length,
-      positiveEvents: events.filter(e => e.sentiment === 'positive').length,
-      negativeEvents: events.filter(e => e.sentiment === 'negative').length,
-      activeStreaks: friends.reduce((sum, f) => sum + (f.streak || 0), 0),
-      categoryCounts
-    };
-  }, [friends, events]);
+  const { aggregateStats } = useStats();
 
   // PWA Notification Listener
   useEffect(() => {
@@ -935,6 +919,7 @@ function App() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm"
+                  aria-label="Search friends or traits"
                 />
               </div>
               <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
@@ -949,9 +934,19 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center space-x-2 pb-2">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <Dashboard 
+                  friends={friends} 
+                  events={events} 
+                />
+              </div>
+              <div className="space-y-6">
+                <DeepInsightsCard />
+                <ChatAssistant friends={friends} events={events} memories={memories} />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 pb-2">
                  <Switch 
                    id="semantic-mode" 
                    checked={isSemanticSearch} 
@@ -977,24 +972,24 @@ function App() {
             <div className="flex flex-col gap-4 bg-white/50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm">
                 <div className="flex flex-col xs:flex-row items-center gap-3 w-full">
                     <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg self-start xs:self-center">
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setViewMode('grid')}
-                            className={`rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-violet-600' : 'text-slate-500 hover:text-slate-700 hover:bg-transparent'}`}
-                            title="Grid View"
-                        >
-                            <LayoutGrid className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setViewMode('list')}
-                            className={`rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-violet-600' : 'text-slate-500 hover:text-slate-700 hover:bg-transparent'}`}
-                            title="List View"
-                        >
-                            <List className="w-4 h-4" />
-                        </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setViewMode('grid')}
+                  className={`rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-violet-600' : 'text-slate-500 hover:text-slate-700 hover:bg-transparent'}`}
+                  aria-label="Grid View"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setViewMode('list')}
+                  className={`rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-violet-600' : 'text-slate-500 hover:text-slate-700 hover:bg-transparent'}`}
+                  aria-label="List View"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
                     </div>
                     
                     <div className="flex-1 flex items-center gap-2 w-full">
@@ -1122,17 +1117,15 @@ function App() {
                 ))}
               </div>
             )}
-              </div>
-              
-              <div className="space-y-6">
-                <BirthdayWidget 
-                  friends={friends} 
-                  onSelectFriend={(f) => {
-                    setSelectedFriend(f);
-                    audioService.playClick();
-                  }} 
-                />
-              </div>
+
+            <div className="space-y-6">
+              <BirthdayWidget 
+                friends={friends} 
+                onSelectFriend={(f) => {
+                  setSelectedFriend(f);
+                  audioService.playClick();
+                }} 
+              />
             </div>
           </TabsContent>
 
