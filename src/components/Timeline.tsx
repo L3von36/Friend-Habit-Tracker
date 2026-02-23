@@ -74,15 +74,15 @@ export function Timeline({ events, friends, onDelete }: TimelineProps) {
                 >
                   <div className="flex items-start gap-4">
                     {/* Category Icon */}
-                    <div className={`w-12 h-12 rounded-xl ${CATEGORIES[event.category].color} flex items-center justify-center text-white text-xl flex-shrink-0`}>
-                      {CATEGORIES[event.category].icon}
+                    <div className={`w-12 h-12 rounded-xl ${CATEGORIES[event.category as keyof typeof CATEGORIES]?.color || 'bg-slate-500'} flex items-center justify-center text-white text-xl flex-shrink-0`}>
+                      {CATEGORIES[event.category as keyof typeof CATEGORIES]?.icon || '📝'}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       {/* Header */}
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex flex-wrap flex-row items-center gap-2 mb-1">
                             <h4 className="font-semibold text-slate-800 dark:text-slate-200">{event.title}</h4>
                             <span className={SENTIMENTS[event.sentiment].color} title={`${SENTIMENTS[event.sentiment].label} sentiment`}>
                               {SENTIMENTS[event.sentiment].icon}
@@ -101,7 +101,7 @@ export function Timeline({ events, friends, onDelete }: TimelineProps) {
                             </div>
                             <span className="text-sm text-slate-600 dark:text-slate-400">{friend.name}</span>
                             <Badge variant="secondary" className="text-xs">
-                              {CATEGORIES[event.category].label}
+                              {CATEGORIES[event.category as keyof typeof CATEGORIES]?.label || 'Event'}
                             </Badge>
                           </div>
                         </div>

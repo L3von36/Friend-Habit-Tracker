@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SmartDrafts } from './SmartDrafts';
-import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles, Brain, Paperclip, Share2, BookOpen, Users2, Printer } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles, Brain, Paperclip, Share2, BookOpen, Users2, Printer, Network } from 'lucide-react';
 import { MediaGallery } from './Media/MediaGallery';
 import { calculateHealthScore } from '@/lib/healthScore';
 import { HealthScoreCard } from './HealthScoreCard';
@@ -24,6 +24,7 @@ import { PsychologicalProfile } from './PsychologicalProfile';
 import { ShareFriendCard } from './Social/ShareFriendCard';
 import { CollaborativeNotes } from './Social/CollaborativeNotes';
 import { IntroduceFriends } from './Social/IntroduceFriends';
+import { EditConnections } from './Social/EditConnections';
 import { useState, useMemo } from 'react';
 
 interface FriendDetailProps {
@@ -53,6 +54,7 @@ interface FriendDetailProps {
   onUpdateGiftIdeas: (friendId: string, ideas: string[]) => void;
   onUpdateInterests: (friendId: string, interests: string[]) => void;
   onIntroduce?: (eventA: any, eventB: any) => void;
+  onUpdateConnections: (friendId: string, connectedIds: string[]) => void;
 }
 
 export function FriendDetail({ 
@@ -75,12 +77,14 @@ export function FriendDetail({
   onUpdateGiftIdeas,
   onUpdateInterests,
   onIntroduce,
+  onUpdateConnections,
   allFriends = [],
   userName = 'Me',
 }: FriendDetailProps) {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isIntroduceOpen, setIsIntroduceOpen] = useState(false);
+  const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
   const initials = friend.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const healthScore = calculateHealthScore(friend, events);
   const profile = useMemo(() => generatePsychologicalProfile(friend, events, memories), [friend, events, memories]);
@@ -107,17 +111,17 @@ export function FriendDetail({
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl ${friend.color} flex items-center justify-center text-white text-xs sm:text-base font-bold shadow-lg`}>
+                <div className={`w-10 h-10 rounded-xl ${friend.color} flex items-center justify-center text-white text-base font-bold shadow-lg`}>
                   {initials}
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{friend.name}</h1>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">{friend.relationship}</p>
+                  <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{friend.name}</h1>
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate shrink-0">{friend.relationship}</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 cursor-help transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 cursor-help transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0">
                             <span className="text-[10px]">{profile.archetypeIcon}</span>
                             <span className={`text-[9px] font-bold uppercase tracking-wider ${profile.archetypeColor}`}>
                               {profile.archetype}
@@ -141,9 +145,14 @@ export function FriendDetail({
                 <BookOpen className="w-4 h-4" />
               </Button>
               {allFriends.length > 1 && (
-                <Button variant="ghost" size="icon" title="Introduce to a Friend" onClick={() => { audioService.playClick(); setIsIntroduceOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
-                  <Users2 className="w-4 h-4" />
-                </Button>
+                <>
+                  <Button variant="ghost" size="icon" title="Introduce to a Friend" onClick={() => { audioService.playClick(); setIsIntroduceOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                    <Users2 className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Edit Connections" onClick={() => { audioService.playClick(); setIsConnectionsOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                    <Network className="w-4 h-4" />
+                  </Button>
+                </>
               )}
               <Button variant="ghost" size="icon" title="Print Report" onClick={() => { audioService.playClick(); window.print(); }} className="rounded-full text-slate-500 hover:text-violet-600">
                 <Printer className="w-4 h-4" />
@@ -365,8 +374,8 @@ export function FriendDetail({
                               <div className="absolute left-3 top-6 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700" />
                             )}
                             {/* Timeline dot */}
-                            <div className={`absolute left-0 top-1 w-6 h-6 rounded-full ${CATEGORIES[event.category].color} flex items-center justify-center`}>
-                              <span className="text-xs">{CATEGORIES[event.category].icon}</span>
+                            <div className={`absolute left-0 top-1 w-6 h-6 rounded-full ${CATEGORIES[event.category as keyof typeof CATEGORIES]?.color || 'bg-slate-500'} flex items-center justify-center`}>
+                              <span className="text-xs">{CATEGORIES[event.category as keyof typeof CATEGORIES]?.icon || '📝'}</span>
                             </div>
                             
                             <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 group hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -539,6 +548,13 @@ export function FriendDetail({
           }}
         />
       )}
+      <EditConnections
+         friend={friend}
+         allFriends={allFriends}
+         isOpen={isConnectionsOpen}
+         onClose={() => setIsConnectionsOpen(false)}
+         onUpdateConnections={onUpdateConnections}
+      />
     </div>
   );
 }

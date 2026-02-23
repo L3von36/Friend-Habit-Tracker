@@ -110,11 +110,11 @@ export function UserProfileView({
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs sm:text-base font-bold shadow-lg`}>
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-base font-bold shadow-lg`}>
                   {initials}
                 </div>
                 <div>
-                  <h1 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200">{profile.name}</h1>
+                  <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">{profile.name}</h1>
                   <p className="hidden sm:block text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Personal Dashboard</p>
                 </div>
               </div>
@@ -356,8 +356,8 @@ export function UserProfileView({
                         {index < events.length - 1 && (
                           <div className="absolute left-3 top-6 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700" />
                         )}
-                        <div className={`absolute left-0 top-1 w-6 h-6 rounded-full ${CATEGORIES[event.category].color} flex items-center justify-center text-[10px] shadow-sm`}>
-                          {CATEGORIES[event.category].icon}
+                        <div className={`absolute left-0 top-1 w-6 h-6 rounded-full ${CATEGORIES[event.category as keyof typeof CATEGORIES]?.color || 'bg-slate-500'} flex items-center justify-center text-[10px] shadow-sm`}>
+                          {CATEGORIES[event.category as keyof typeof CATEGORIES]?.icon || '📝'}
                         </div>
                         
                         <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-xl p-4 group hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">

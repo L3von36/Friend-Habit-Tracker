@@ -35,16 +35,16 @@ describe('Gamification Engine', () => {
     });
 
     describe('updateFriendXP', () => {
-        const mockFriend: Friend = {
+        const mockFriend = {
             id: '1',
             name: 'Test Friend',
             xp: 0,
             level: 1,
-            addedDate: new Date().toISOString(),
-            tags: [],
-            sentiment: 'neutral',
-            category: 'friend'
-        };
+            createdAt: new Date().toISOString(),
+            interests: [],
+            traits: [],
+            giftIdeas: []
+        } as unknown as Friend;
 
         it('should increase XP and not level up if under threshold', () => {
             const result = updateFriendXP(mockFriend, 50);

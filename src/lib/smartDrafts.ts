@@ -1,5 +1,6 @@
 import type { Friend, Event } from '@/types';
 import { generatePsychologicalProfile } from './profiling';
+import { callGroq, getGroqApiKey } from './groq';
 
 export type DraftIntent = 'greeting' | 'check-in' | 'plans' | 'gratitude' | 'apology' | 'celebrate' | 'support';
 
@@ -48,15 +49,61 @@ const TEMPLATES: Record<DraftIntent, DraftTemplate[]> = {
     ],
 };
 
-export function generateSmartDrafts(
+export async function generateSmartDrafts(
     friend: Friend,
     events: Event[],
     intent: DraftIntent
-): string[] {
-    const profile = generatePsychologicalProfile(friend, events, []); // Memories not strictly needed for this
-    const templates = TEMPLATES[intent];
+): Promise<string[]> {
+    const profile = generatePsychologicalProfile(friend, events, []);
 
-    // Filter and score templates based on profile
+    // 1. Check for Groq API
+    if (getGroqApiKey()) {
+        try {
+            const systemPrompt = `You are an expert relationship communication assistant.
+Your task is to draft exactly 3 short, distinct message options based on the requested Intent, the Friend's psychological profile, and recent events.
+
+The 3 options should vary slightly in tone (e.g., Casual, Heartfelt, Brief).
+Output ONLY a JSON array of strings. No markdown, no explanations.
+Example output: ["Hey, just checking in!", "Thinking of you today.", "Hope you're having a good week!"]`;
+
+            const userPrompt = `Intent: ${intent}
+Friend Name: ${friend.name}
+Friend Traits: ${profile.traits}
+Communication Style: ${profile.communicationStyle}
+Recent Events:
+${JSON.stringify(events.slice(-3).map(e => ({ title: e.title, sentiment: e.sentiment, category: e.category })), null, 2)}
+
+Provide exactly 3 drafts tailored to this friend in JSON array format [ "Draft 1", "Draft 2", "Draft 3" ]. Replace any placeholders with the actual friend name.`;
+
+            const response = await callGroq([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ], {
+                model: 'llama-3.1-8b-instant',
+                temperature: 0.7,
+            });
+
+            if (response) {
+                try {
+                    // Try to parse JSON array out of response (in case it wrapped it in text)
+                    const matches = response.match(/\[([\s\S]*?)\]/);
+                    if (matches) {
+                        const parsed = JSON.parse(matches[0]);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            return parsed.map(String).slice(0, 3);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Groq Smart Drafts parsing failed, falling back locally.', e);
+                }
+            }
+        } catch (e) {
+            console.warn('Groq Smart Drafts api failed, falling back locally.', e);
+        }
+    }
+
+    // 2. Fallback to Algorithmic Templates
+    const templates = TEMPLATES[intent];
     const scoredTemplates = templates.map(template => {
         let score = 0;
 

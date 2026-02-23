@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,11 +17,16 @@ export function SmartDrafts({ friend, events }: SmartDraftsProps) {
   const suggestedIntent = useMemo(() => suggestIntent(friend, events), [friend, events]);
   const [activeIntent, setActiveIntent] = useState<DraftIntent>(suggestedIntent);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [drafts, setDrafts] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const drafts = useMemo(() => 
-    generateSmartDrafts(friend, events, activeIntent),
-    [friend, events, activeIntent]
-  );
+  useEffect(() => {
+    setIsGenerating(true);
+    generateSmartDrafts(friend, events, activeIntent).then(result => {
+      setDrafts(result);
+      setIsGenerating(false);
+    });
+  }, [friend, events, activeIntent]);
 
   const handleCopy = (text: string, index: number) => {
     audioService.playSuccess();
@@ -74,7 +79,15 @@ export function SmartDrafts({ friend, events }: SmartDraftsProps) {
             ))}
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid gap-3 relative min-h-[160px]">
+            {isGenerating && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-[2px] rounded-lg">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-violet-100 dark:border-violet-900/50 text-sm font-medium text-violet-600 dark:text-violet-400">
+                        <Wand2 className="w-4 h-4 animate-spin text-violet-500" />
+                        Generating smart drafts...
+                    </div>
+                </div>
+            )}
             {drafts.map((draft, index) => (
                 <Card 
                     key={index}

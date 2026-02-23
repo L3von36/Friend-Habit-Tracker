@@ -1,11 +1,18 @@
 import { pipeline, env } from '@xenova/transformers';
 
-// Skip local checks - use browser cache
-env.allowLocalModels = false;
+// Allow loading models from local paths when provided
+env.allowLocalModels = true;
 env.useBrowserCache = true;
 
 let embedder: any = null;
 let documentEmbeddings: { doc: any, embedding: number[] }[] = [];
+let pendingRequests: Record<string, (payload: any) => void> = {};
+let requestCounter = 0;
+
+function generateRequestId() {
+    requestCounter += 1;
+    return `${Date.now()}-${requestCounter}`;
+}
 
 // --- Cosine Similarity ---
 const cosineSimilarity = (a: number[], b: number[]) => {
@@ -21,7 +28,96 @@ const cosineSimilarity = (a: number[], b: number[]) => {
 // --- Get/init embedder ---
 async function getEmbedder(): Promise<any> {
     if (!embedder) {
-        embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+        const modelIdOrPath = (self as any).__LOCAL_MODEL_PATH || 'Xenova/all-MiniLM-L6-v2';
+
+        // Instrument fetch to log model file requests (helps debug JSON/HTML responses)
+        try {
+            const originalFetch = (self as any).fetch.bind(self);
+            (self as any).fetch = async (input: RequestInfo, init?: RequestInit) => {
+                try {
+                    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+                    console.info('[semanticWorker] fetch ->', url);
+                    const res = await originalFetch(input, init);
+                    const ct = res.headers ? res.headers.get('content-type') : '';
+
+                    // Clone and inspect body safely to detect malformed JSON or HTML served as JSON.
+                    try {
+                        const cloned = res.clone();
+                        const text = await cloned.text();
+                        const head = text.trim().slice(0, 1000).replace(/\s+/g, ' ');
+
+                        // If content-type suggests JSON or the body looks like HTML, attempt a JSON parse to detect errors
+                        if ((ct && ct.includes('application/json')) || head.startsWith('<') || head.toLowerCase().includes('<!doctype')) {
+                            try {
+                                JSON.parse(text);
+                            } catch (jsonErr) {
+                                console.error('[semanticWorker] JSON.parse failed for', url, 'status', res.status, 'content-type', ct, 'bodyPreview:', head.slice(0, 1000));
+                            }
+                        }
+                    } catch (e) {
+                        // If clone/text fails, just log and continue
+                        console.warn('[semanticWorker] failed to inspect response body for', url, String(e));
+                    }
+
+                    console.info('[semanticWorker] fetch status', res.status, 'content-type:', ct, '->', url);
+                    return res;
+                } catch (err) {
+                    console.error('[semanticWorker] fetch error', err, input);
+                    throw err;
+                }
+            };
+        } catch (e) {
+            // ignore if we cannot wrap fetch
+        }
+
+        // If the model path looks like a local URL (starts with '/'), perform preflight checks
+        if (String(modelIdOrPath).startsWith('/')) {
+            // Broaden the set of candidate files that tokenizers or the loader might request.
+            const candidateFiles = [
+                'config.json',
+                'tokenizer.json',
+                'tokenizer_config.json',
+                'special_tokens_map.json',
+                'vocab.txt',
+                'merges.txt',
+                'model.safetensors',
+                'modules.json',
+                'generation_config.json',
+                'sentencepiece.bpe.model'
+            ];
+
+            for (const f of candidateFiles) {
+                const url = `${modelIdOrPath.replace(/\/+$/, '')}/${f}`;
+                try {
+                    const res = await (self as any).fetch(url, { method: 'GET' });
+                    const ct = res.headers ? res.headers.get('content-type') : '';
+                    let bodyPreview = '';
+                    try {
+                        const cloned = res.clone();
+                        const text = await cloned.text();
+                        bodyPreview = text.trim().slice(0, 1200).replace(/\s+/g, ' ');
+                    } catch (e) {
+                        bodyPreview = `<unable to read body: ${String(e)}>`;
+                    }
+
+                    console.info('[semanticWorker] preflight', { url, status: res.status, contentType: ct, bodyPreview: bodyPreview.slice(0, 300) });
+
+                    // If the response is HTML it's likely the dev server returned index.html
+                    if (res.status === 200 && (ct && ct.includes('text/html') || bodyPreview.startsWith('<') || bodyPreview.toLowerCase().includes('<!doctype'))) {
+                        console.error('[semanticWorker] preflight failure: expected model file but got HTML or HTML-like content', { url, status: res.status, contentType: ct, bodyPreview: bodyPreview.slice(0, 300) });
+                        throw new Error(`Preflight failed for ${url}: returned HTML-like content`);
+                    }
+                    if (!res.ok) {
+                        console.warn('[semanticWorker] preflight warning: non-OK response', { url, status: res.status, contentType: ct });
+                    }
+                } catch (err) {
+                    console.error('[semanticWorker] preflight fetch error', { url, err: String(err) });
+                    throw err;
+                }
+            }
+        }
+
+        embedder = await pipeline('feature-extraction', modelIdOrPath, {
             progress_callback: (progress: any) => {
                 self.postMessage({ type: 'init_progress', payload: progress });
             }
@@ -42,6 +138,13 @@ self.onmessage = async (event: MessageEvent) => {
     // --- Init ---
     if (type === 'init') {
         try {
+            // If main thread passed a modelPath, expose it to worker global and prefer it
+            try {
+                if (payload && payload.modelPath) {
+                    (self as any).__LOCAL_MODEL_PATH = payload.modelPath;
+                    console.info('[semanticWorker] using local model path', payload.modelPath);
+                }
+            } catch (e) { }
             await getEmbedder();
             self.postMessage({ type: 'init_complete' });
         } catch (error) {
@@ -87,7 +190,7 @@ self.onmessage = async (event: MessageEvent) => {
 
     // --- Deep Insights Analysis (replaces server) ---
     if (type === 'analyze') {
-        const { friends, events } = payload;
+        const { friends } = payload;
         try {
             await getEmbedder();
 
@@ -110,17 +213,21 @@ self.onmessage = async (event: MessageEvent) => {
                 'frequent meaningful interactions regular meetups shared experiences consistent communication strong emotional bond'
             );
 
-            // Build text summary for each friend based on their events
+            // Build text summary for each friend based on MCP-provided context
             const scoredFriends = await Promise.all(
                 friends.map(async (friend: any) => {
-                    const friendEvents = events.filter((e: any) => e.friendId === friend.id);
-                    const eventText = friendEvents
-                        .map((e: any) => `${e.category || ''} ${e.sentiment || ''} ${(e.tags || []).join(' ')}`)
-                        .join('. ');
-                    const summary = `category ${friend.category || 'general'} streak ${friend.streak || 0} level ${friend.level || 1} events: ${eventText || 'none logged'}`;
+                    // Request friend context from main thread (MCP)
+                    const reqId = generateRequestId();
+                    const contextPromise = new Promise<any>((resolve) => {
+                        pendingRequests[reqId] = resolve;
+                    });
+                    self.postMessage({ type: 'request_context', requestId: reqId, payload: { action: 'getFriendContext', friendId: friend.id } });
+                    const context = await contextPromise;
+
+                    const summary = context?.summary || `category ${friend.category || 'general'} streak ${friend.streak || 0} level ${friend.level || 1}`;
                     const embedding = await embed(summary);
                     const similarity = cosineSimilarity(idealEmbedding, embedding);
-                    return { friend, similarity, eventCount: friendEvents.length };
+                    return { friend, similarity, eventCount: context?.eventsCount || 0 };
                 })
             );
 
@@ -148,6 +255,14 @@ self.onmessage = async (event: MessageEvent) => {
             self.postMessage({ type: 'analyze_complete', requestId, payload: result });
         } catch (error) {
             self.postMessage({ type: 'error', payload: String(error), requestId });
+        }
+    }
+    // Handle responses from main thread for pending requests
+    if (type === 'request_context_response') {
+        const handler = pendingRequests[requestId];
+        if (handler) {
+            handler(payload);
+            delete pendingRequests[requestId];
         }
     }
 };

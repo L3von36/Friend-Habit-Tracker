@@ -1,76 +1,74 @@
-import { toast } from 'sonner';
+import type { Friend } from '@/types';
+import { differenceInDays } from 'date-fns';
 
-interface NotificationAction {
-    action: string;
-    title: string;
-    icon?: string;
-}
-
-interface NotificationOptions {
-    body?: string;
-    icon?: string;
-    badge?: string;
-    tag?: string;
-    actions?: NotificationAction[];
-    requireInteraction?: boolean;
-    vibrate?: number[];
-}
-
-export async function requestNotificationPermission() {
-    if (!('Notification' in window)) return false;
-
-    if (Notification.permission === 'granted') return true;
-
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-}
-
-export async function showQuickReplyNotification(
-    title: string,
-    options: NotificationOptions,
-    onAction?: (action: string) => void
-) {
+export async function requestNotificationPermission(): Promise<boolean> {
     if (!('Notification' in window)) {
-        // Fallback to sonner toast for non-supporting browsers
-        toast(title, {
-            description: options.body,
-            action: options.actions?.[0] ? {
-                label: options.actions[0].title,
-                onClick: () => onAction?.(options.actions![0].action)
-            } : undefined
+        console.warn('This browser does not support desktop notifications');
+        return false;
+    }
+
+    if (Notification.permission === 'granted') {
+        return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    }
+
+    return false;
+}
+
+export function sendLocalNotification(title: string, options?: NotificationOptions) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+        // Determine icon based on system theme preferences if none provided
+        const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const defaultIcon = isDark ? '/icon-192-maskable.png' : '/icon-192.png';
+
+        const notification = new Notification(title, {
+            icon: defaultIcon,
+            badge: defaultIcon,
+            ...options
         });
-        return;
-    }
 
-    if (Notification.permission !== 'granted') {
-        const granted = await requestNotificationPermission();
-        if (!granted) return;
-    }
-
-    // If we have a service worker, use it to show a notification that can persist
-    const registration = await navigator.serviceWorker.getRegistration();
-
-    if (registration) {
-        registration.showNotification(title, {
-            ...options,
-            vibrate: [200, 100, 200],
-        } as any);
-
-        // Listen for action clicks (handled in sw.js or via message)
-        // For this simple version, we'll use a BroadcastChannel or similar if needed
-        // But for "Integration" we at least show them.
-    } else {
-        new Notification(title, options);
+        // Optional click handler to focus the window
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
     }
 }
 
-// Add a simple listener for the service worker message if needed
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_ACTION') {
-            console.log('Notification action received:', event.data.action);
-            // We could use an event emitter here to notify App.tsx
-            window.dispatchEvent(new CustomEvent('pwa-notification-action', { detail: event.data }));
+/**
+ * Checks all friends for streaks that are expiring (e.g. they haven't been contacted in 6 days and the streak drops at 7)
+ * Fired periodically to warn the user.
+ */
+export function checkAndNotifyExpiringStreaks(friends: Friend[]) {
+    if (Notification.permission !== 'granted') return;
+
+    const now = new Date();
+
+    friends.forEach(friend => {
+        // Only check friends with an active streak (>0)
+        if (!friend.streak || friend.streak <= 0) return;
+
+        // Default last update to created date if not available
+        const lastUpdateDate = friend.lastStreakUpdate ? new Date(friend.lastStreakUpdate) : new Date(friend.createdAt);
+
+        // Calculate days since last streak update
+        const daysSinceContact = differenceInDays(now, lastUpdateDate);
+
+        // Scenario: Streaks usually expire after 7 days. If it's been 6 days, send a warning!
+        if (daysSinceContact === 6) {
+            // Create a unique deterministic ID for the tag so we don't spam the same notification
+            const tag = `streak-warning-${friend.id}-${lastUpdateDate.getTime()}`;
+
+            sendLocalNotification(`Keep the streak alive! 🔥`, {
+                body: `Your streak of ${friend.streak} with ${friend.name} expires tomorrow. Log an event to keep it going!`,
+                tag: tag,
+                requireInteraction: true // Keep it on screen until dismissed or clicked
+            });
         }
     });
 }

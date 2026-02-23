@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '@/store/useStore';
-import { CATEGORIES } from '@/types';
+
 
 export function useStats() {
     const { friends, events } = useStore();

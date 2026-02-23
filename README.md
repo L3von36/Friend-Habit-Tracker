@@ -1,73 +1,67 @@
-# React + TypeScript + Vite
+# Friend Habit Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Friend Habit Tracker is a modern, AI-powered personal CRM and relationship management web application. It is designed to help you nurture your relationships, track interactions, and gain meaningful psychological insights into your social life.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Dashboard & Stats**: Get a bird's-eye view of your social life with comprehensive statistics, category breakdowns, and sentiment analysis for your interactions.
+- **Friend Profiles**: Maintain detailed profiles for your contacts, including traits, interests, milestones, and shared relationship goals.
+- **Event Logging**: Log events (hangouts, calls, deep conversations) and tag them. Watch your relationship health score adapt over time.
+- **Memories & Gratitude**: Keep a journal of standout moments and practice gratitude for your highest-value connections.
+- **Interactive UI**: A sleek, fully featured responsive React frontend built with Vite, Tailwind CSS, and Shadcn UI components.
 
-## React Compiler
+## 🧠 Advanced AI Superpowers
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Friend Habit Tracker features a completely decoupled, flexible **Hybrid AI System** that elevates your relationship management experience:
 
-## Expanding the ESLint configuration
+- **🔐 Privacy-First Local AI**: By default, the application uses an entirely browser-based, privacy-preserving semantic search model (Xenova Transformers / `all-MiniLM-L6-v2`) to provide offline intelligence.
+- **⚡ Groq Llama 3.1 Integration**: Unlock cloud intelligence! By providing a Groq API Key in your Security Settings, you completely bypass the local models in favor of the blazing-fast `llama-3.1-8b-instant`.
+- **💡 Deep Insights**: Analyzes all logged interactions to generate highly actionable psychological advice (e.g., "Reconnect with Sarah," "Maintain Momentum").
+- **✉️ Smart Drafts & Conversation Starters**: Dynamically synthesizes personalized icebreakers and exact phrasing suggestions tailored to your friend's personality archetype.
+- **💬 Conversational AI Assistant**: An interactive chatbot wrapper around your data! Ask questions like, *"When did I last see Mark?"* or *"Who do I have the highest streak with?"* and get real-time answers.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🚀 Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Prerequisites
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Node.js (v18+ recommended)
+- npm or yarn
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### Installation
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+1. Clone the repository and navigate into the project folder.
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up environment variables:
+   Copy `.env.example` to `.env`.
+   ```bash
+   cp .env.example .env
+   ```
+   *(Optional)* Add your `VITE_GROQ_API_KEY` to `.env`, or configure it safely within the app's Security Settings UI.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+5. Open your browser and visit `http://localhost:3000`.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🛠️ Tech Stack
+
+- **Framework**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, PostCSS
+- **Components**: Radix UI, Shadcn UI
+- **Icons**: Lucide React
+- **AI Processing**: Groq SDK (Cloud) & Xenova Transformers (Local Web Worker)
+- **Data Format**: Internal state tracking with MCP context formatting standard.
+
+## 🔒 Security & Privacy
+
+Privacy is a core pillar. By default, **no data leaves your machine**. Semantic analysis is powered exclusively by a background Web Worker locally.
+
+When you opt-in to advanced cloud intelligence via Groq, only the necessary anonymized context metrics are sent via TLS to securely generate deep insights or drafts. You can revoke this permission instantly through the application settings.
+
+---
+
+### Developed for Better Relationships 💙

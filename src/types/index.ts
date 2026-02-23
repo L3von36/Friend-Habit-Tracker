@@ -19,6 +19,7 @@ export interface Friend {
   // Introduction tracking
   introducedBy?: string; // friendId
   introducedDate?: string;
+  connectedFriends?: string[]; // IDs of friends they are connected to
   // Gamification
   xp: number;
   level: number;

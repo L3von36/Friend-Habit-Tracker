@@ -20,7 +20,7 @@ self.addEventListener('push', (event) => {
     const title = data.title ?? 'Friendship Insight';
     const options = {
         body: data.body ?? 'Gemma has a new weekly focus for your friendships!',
-        icon: '/icons/icon-192x192.png',
+                icon: '/icons/icon-192x192.svg',
         badge: '/favicon.ico',
         tag: data.tag ?? 'friendship-insight',
         data: data.url ?? '/',

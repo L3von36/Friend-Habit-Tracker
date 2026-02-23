@@ -1,0 +1,3 @@
+# Placeholder merges.txt
+# Some tokenizers request this file; serve an empty/placeholder to avoid 404->index.html
+

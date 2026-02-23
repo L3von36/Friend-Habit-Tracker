@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Brain, Sparkles, RefreshCw, ChevronRight, MessageSquare, Target } from 'lucide-react';
@@ -81,7 +81,19 @@ export function DeepInsightsCard() {
                 ))}
               </div>
 
-              <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-600/20 rounded-xl py-6 h-auto flex justify-between items-center group">
+              <Button
+                className="w-full bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-600/20 rounded-xl py-6 h-auto flex justify-between items-center group"
+                onClick={() => {
+                  try {
+                    const prompt = `Start a relationship session focused on ${insight.focus}: ${insight.insight}`;
+                    const evt = new CustomEvent('start-relationship-session', { detail: { prompt } });
+                    window.dispatchEvent(evt);
+                  } catch (e) {
+                    console.error('Failed to start relationship session', e);
+                  }
+                }}
+                aria-label="Start Relationship Session"
+              >
                 <div className="flex items-center gap-3">
                   <MessageSquare className="w-5 h-5" />
                   <span className="text-sm font-bold">Start Relationship Session</span>

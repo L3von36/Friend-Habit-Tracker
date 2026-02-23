@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Brain, Send, User, Bot, Sparkles, History, Search, Mic, MicOff } from 'lucide-react';
 import type { Friend, Event, Memory } from '@/types';
-import { formatDistanceToNow } from 'date-fns';
 import { semanticSearch } from '@/lib/semanticSearch';
-import { toast } from 'sonner';
+import { callGroq, getGroqApiKey } from '@/lib/groq';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,12 +31,16 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(semanticSearch.status);
   const [aiProgress, setAiProgress] = useState(semanticSearch.initializationProgress);
   const [aiMessage, setAiMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const handleSendRef = useRef<() => void>(() => {});
+
+  const { isListening, toggleListening } = useSpeechRecognition({
+    onResult: (transcript) => setInput(prev => (prev ? `${prev} ${transcript}` : transcript))
+  });
 
   useEffect(() => {
     const unsubscribe = semanticSearch.addProgressListener((payload: any) => {
@@ -66,149 +70,48 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
     }
   }, [messages]);
 
-  // Handle Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
+  const processQuery = useCallback(async (query: string) => {
+    const q = query.trim();
+    const apiKey = getGroqApiKey();
 
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        if (event.error !== 'no-speech') {
-          toast.error(`Voice error: ${event.error}`);
-        }
-      };
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(prev => (prev ? `${prev} ${transcript}` : transcript));
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, []);
-
-  const toggleListening = useCallback(() => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-    } else {
-      if (!recognitionRef.current) {
-        toast.error("Speech recognition is not supported in this browser.");
-        return;
-      }
+    if (apiKey) {
       try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.error('Failed to start recognition', e);
-      }
-    }
-  }, [isListening]);
+        const systemPrompt = `You are a helpful, empathetic "Friendship AI" assistant for a personal relationship tracker app.
+You have access to the user's logged friends, events (interactions), and memories.
+Answer the user's questions about their social life concisely, warmly, and accurately using ONLY the provided data.
+If they ask a general question, be helpful. If you don't know the answer based on the data, say so.`;
 
-  const processQuery = (query: string) => {
-    const q = query.toLowerCase().trim();
+        // Minify data to fit context and remove overly verbose/unnecessary fields if any, though Llama 3 handles 8k fine
+        const contextData = {
+          friends: friends.map(f => ({ id: f.id, name: f.name, level: f.level, streak: f.streak, relationship: f.relationship, birthday: f.birthday })),
+          events: events.map(e => ({ friendId: e.friendId, title: e.title, date: e.date, category: e.category, sentiment: e.sentiment })),
+          memories: memories.map(m => ({ friendId: m.friendId, description: m.description, date: m.date }))
+        };
 
-    // --- 0. Intent Detection: Conversational inputs ---
-    const greetings = ['hi', 'hello', 'hey', 'sup', 'hiya', 'howdy', 'yo', 'good morning', 'good evening', 'good afternoon'];
-    if (greetings.some(g => q === g || q.startsWith(g + ' ') || q.startsWith(g + '!'))) {
-      const hour = new Date().getHours();
-      const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      return `${timeGreeting}! 👋 I'm your Friendship AI. I know all about your ${friends.length} friend${friends.length !== 1 ? 's' : ''} and ${events.length} logged interaction${events.length !== 1 ? 's' : ''}. Try asking me:\n• "When did I last see [name]?"\n• "What memories do I have with [name]?"\n• "Who has the highest streak?"\n• "What's my most recent event?"`;
-    }
+        const userPrompt = `System Data Context:
+${JSON.stringify(contextData, null, 2)}
 
-    const thankYou = ['thanks', 'thank you', 'thx', 'ty', 'great', 'awesome', 'perfect', 'cool', 'nice'];
-    if (thankYou.some(t => q === t || q.startsWith(t + '!'))) {
-      return "Happy to help! 😊 Feel free to ask me anything else about your friends and interactions.";
-    }
+User Question: ${q}`;
 
-    const helpPatterns = ['help', 'what can you do', 'what do you know', 'commands', 'how do i', 'what should i ask'];
-    if (helpPatterns.some(h => q.includes(h))) {
-      return `Here's what I can help you with:\n\n🔍 **Friend Lookup** — "Tell me about [name]", "Last time I saw [name]"\n💬 **Memories** — "What memories do I have with [name]?"\n📊 **Stats** — "Who has the highest streak?", "Most recent event"\n🏆 **Insights** — "Most frequent activity?", "How many friends do I have?"`;
-    }
-
-    if (q.includes('how many friends') || q === 'friends count' || q.includes('total friends')) {
-      return `You have ${friends.length} friend${friends.length !== 1 ? 's' : ''} tracked! You've logged ${events.length} total interactions and ${memories.length} memories across your social circle.`;
-    }
-
-    if (q.includes('who') && (q.includes('birthday') || q.includes('born'))) {
-      const withBirthday = friends.filter(f => f.birthday);
-      if (withBirthday.length > 0) {
-        const upcoming = withBirthday
-          .map(f => ({ f, date: new Date(f.birthday!) }))
-          .sort((a, b) => a.date.getMonth() - b.date.getMonth() || a.date.getDate() - b.date.getDate());
-        return `${upcoming.length} friend${upcoming.length !== 1 ? 's have' : ' has'} birthdays saved. Next up: ${upcoming[0].f.name} 🎂`;
-      }
-      return "No birthdays have been saved yet. You can add them in the friend detail view!";
-    }
-
-    // 1. Find the mentioned friend
-    const mentionedFriend = friends.find(f => q.includes(f.name.toLowerCase()));
-    
-    if (mentionedFriend) {
-      const friendEvents = events
-        .filter(e => e.friendId === mentionedFriend.id)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      const friendMemories = memories.filter(m => m.friendId === mentionedFriend.id);
-
-      if (q.includes('last seen') || q.includes('last saw') || q.includes('recent') || q.includes('last contact')) {
-        const lastEvent = friendEvents[0];
-        if (lastEvent) {
-          return `You last saw ${mentionedFriend.name} on ${new Date(lastEvent.date).toLocaleDateString()} (${formatDistanceToNow(new Date(lastEvent.date))} ago). It was a ${lastEvent.category} event: "${lastEvent.title}".`;
-        }
-        return `I couldn't find any recorded interactions with ${mentionedFriend.name} yet.`;
-      }
-
-      if (q.includes('memory') || q.includes('memories') || q.includes('remember')) {
-        if (friendMemories.length > 0) {
-          const m = friendMemories[0];
-          return `You have ${friendMemories.length} memories with ${mentionedFriend.name}. One highlight is: "${m.description}" from ${new Date(m.date).toLocaleDateString()}.`;
-        }
-        return `You haven't added any specific memories with ${mentionedFriend.name} yet. Would you like to add one?`;
-      }
-
-      if (q.includes('how are we') || q.includes('status') || q.includes('level')) {
-        return `Your friendship with ${mentionedFriend.name} is at Level ${mentionedFriend.level || 1}. You've logged ${friendEvents.length} events together total.`;
-      }
-
-      return `I found ${mentionedFriend.name} in your list! You've had ${friendEvents.length} interactions and ${friendMemories.length} shared memories. What specific details are you looking for?`;
-    }
-
-    // 2. General queries
-    if (q.includes('most recent') || q.includes('last event')) {
-      const lastEvent = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-      if (lastEvent) {
-        const f = friends.find(friend => friend.id === lastEvent.friendId);
-        return `Your most recent event was with ${f?.name || 'someone'} on ${new Date(lastEvent.date).toLocaleDateString()}: "${lastEvent.title}".`;
+        const response = await callGroq([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ], {
+           model: 'llama-3.1-8b-instant',
+           temperature: 0.7
+        });
+        
+        if (response) return response;
+      } catch (error: any) {
+         console.error('Groq Chat Assistant failed', error);
+         return "I'm sorry, I'm having trouble connecting to the cloud intelligence right now.";
       }
     }
 
-    if (q.includes('streak')) {
-      const highestStreak = [...friends].sort((a, b) => (b.streak || 0) - (a.streak || 0))[0];
-      if (highestStreak && (highestStreak.streak || 0) > 0) {
-        return `Your longest current streak is with ${highestStreak.name} at ${highestStreak.streak} weeks! 🔥`;
-      }
-      return "You don't have any active streaks yet. Log weekly interactions to start one!";
-    }
+    return "Please configure your Groq API key in the Security Settings to use the enhanced AI chat assistant.";
+  }, [friends, events, memories]);
 
-    if (q.includes('popular') || q.includes('frequent')) {
-      const counts: Record<string, number> = {};
-      events.forEach(e => { counts[e.category] = (counts[e.category] || 0) + 1; });
-      const topCategory = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      if (topCategory) {
-        return `Your most frequent interaction category is "${topCategory[0]}" with ${topCategory[1]} logs.`;
-      }
-    }
-
-    return `I'm not sure I understood that. 🤔 Try mentioning a friend's name, or ask things like:\n• "Last time I saw [friend name]"\n• "Who has the longest streak?"\n• "How many friends do I have?"\n• Type "help" to see everything I can do!`;
-  };
-
-
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (!input.trim()) return;
 
     const userMessage: Message = {
@@ -221,8 +124,8 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = processQuery(userMessage.content);
+    setTimeout(async () => {
+      const response = await processQuery(userMessage.content);
       const assistantMessage: Message = {
         role: 'assistant',
         content: response,
@@ -230,8 +133,37 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
       };
       setMessages(prev => [...prev, assistantMessage]);
       setIsTyping(false);
-    }, 800);
-  };
+    }, 100);
+  }, [input, processQuery]);
+
+  // expose handleSend to event listener via ref
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
+
+  // Listen for external requests to start a relationship session
+  useEffect(() => {
+    const handler = (event: CustomEvent<any>) => {
+      try {
+        const prompt = event?.detail?.prompt || '';
+        if (!prompt) return;
+        setInput(prompt);
+        // small delay to allow input to update before sending
+        setTimeout(() => {
+          handleSendRef.current && handleSendRef.current();
+          try { inputRef.current?.focus(); } catch { /* ignored */ }
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        }, 200);
+      } catch (error: any) {
+        console.error('Error handling start-relationship-session event', error);
+      }
+    };
+
+    window.addEventListener('start-relationship-session', handler as EventListener);
+    return () => window.removeEventListener('start-relationship-session', handler as EventListener);
+  }, []);
 
   return (
     <Card className="flex flex-col h-[500px] border-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-2xl overflow-hidden">
@@ -270,8 +202,8 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <CardContent className="flex-1 overflow-hidden p-0 flex flex-col min-h-0">
+        <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -279,7 +211,7 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
                   <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center ${m.role === 'user' ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-slate-100 dark:bg-slate-800'}`}>
                     {m.role === 'user' ? <User className="w-3.5 h-3.5 text-violet-600" /> : <Bot className="w-3.5 h-3.5 text-slate-600" />}
                   </div>
-                  <div className={`p-3 rounded-2xl text-xs sm:text-sm lg:text-base leading-relaxed ${
+                  <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
                     m.role === 'user' 
                       ? 'bg-violet-600 text-white rounded-tr-none' 
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm border border-slate-100 dark:border-slate-700 rounded-tl-none'
@@ -312,6 +244,7 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
             <div className="relative flex-1">
               <Input 
                 placeholder="Ask about Sarah, streaks, recent events..."
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="w-full bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus-visible:ring-violet-500 h-10 text-sm pr-10"
@@ -348,7 +281,7 @@ export function ChatAssistant({ friends, events, memories }: ChatAssistantProps)
               <button
                 key={i}
                 onClick={() => setInput(s.text)}
-                className="flex items-center gap-1.5 whitespace-nowrap text-[10px] sm:text-xs font-medium text-slate-500 hover:text-violet-600 transition-colors bg-white/50 dark:bg-slate-800/50 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700"
+                className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-slate-500 hover:text-violet-600 transition-colors bg-white/50 dark:bg-slate-800/50 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700"
               >
                 {s.icon}
                 {s.text}

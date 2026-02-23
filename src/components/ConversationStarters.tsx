@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { audioService } from '@/lib/audio';
 import type { Friend, Event } from '@/types';
 import { generateConversationStarters } from '@/lib/aiHelpers';
-import { RefreshCw, Copy, Check, Sparkles, Lightbulb } from 'lucide-react';
+import { RefreshCw, Copy, Check, Sparkles, Lightbulb, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ConversationStartersProps {
@@ -15,17 +15,22 @@ interface ConversationStartersProps {
 export function ConversationStarters({ friend, events }: ConversationStartersProps) {
   const [starters, setStarters] = useState<string[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const generatedStarters = useMemo(() => {
-    return generateConversationStarters(friend, events);
+  useEffect(() => {
+    setIsGenerating(true);
+    generateConversationStarters(friend, events).then((res) => {
+        setStarters(res);
+        setIsGenerating(false);
+    });
   }, [friend, events]);
 
-  const allStarters = starters.length > 0 ? starters : generatedStarters;
-
-  const handleRegenerate = () => {
+  const handleRegenerate = async () => {
     audioService.playClick();
-    const newStarters = generateConversationStarters(friend, events);
+    setIsGenerating(true);
+    const newStarters = await generateConversationStarters(friend, events);
     setStarters(newStarters);
+    setIsGenerating(false);
   };
 
   const handleCopy = (text: string, index: number) => {
@@ -55,8 +60,8 @@ export function ConversationStarters({ friend, events }: ConversationStartersPro
           <Sparkles className="w-5 h-5 text-violet-500" />
           <h3 className="font-semibold text-slate-800 dark:text-slate-200">AI Conversation Starters</h3>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRegenerate}>
-          <RefreshCw className="w-4 h-4 mr-2" />
+        <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={isGenerating}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
           Regenerate
         </Button>
       </div>
@@ -65,8 +70,16 @@ export function ConversationStarters({ friend, events }: ConversationStartersPro
         Personalized suggestions based on {friend.name}'s interests and recent events
       </p>
 
-      <div className="space-y-3">
-        {allStarters.map((starter, index) => (
+      <div className="space-y-3 relative min-h-[220px]">
+        {isGenerating && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-[2px] rounded-lg">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-violet-100 dark:border-violet-900/50 text-sm font-medium text-violet-600 dark:text-violet-400">
+                    <Wand2 className="w-4 h-4 animate-spin text-violet-500" />
+                    Generating conversation starters...
+                </div>
+            </div>
+        )}
+        {starters.map((starter, index) => (
           <Card 
             key={index} 
             className="p-4 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-0 hover:shadow-md transition-shadow group"

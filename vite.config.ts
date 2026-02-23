@@ -11,12 +11,40 @@ export default defineConfig({
   plugins: [
     inspectAttr(),
     react(),
+    // Ensure dev server serves .safetensors with binary content-type to avoid loader parsing issues
+    {
+      name: 'safetensors-mime',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          try {
+            if (req.url && req.url.endsWith('.safetensors')) {
+              res.setHeader('content-type', 'application/octet-stream');
+            }
+            // Prevent SPA fallback for missing model files
+            if (req.url && req.url.startsWith('/models/')) {
+              const fs = require('fs');
+              const path = require('path');
+              const filePath = path.join(__dirname, 'public', req.url.split('?')[0]);
+              if (!fs.existsSync(filePath)) {
+                res.statusCode = 404;
+                res.end('Not found');
+                return;
+              }
+            }
+          } catch (e) { }
+          next();
+        });
+      }
+    },
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 3145728, // 3 MB
+      },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'icons/icon-192x192.svg', 'icons/icon-512x512.svg'],
       manifest: {
         name: 'Friend Habit Tracker',
         short_name: 'FriendTracker',
@@ -24,14 +52,14 @@ export default defineConfig({
         theme_color: '#8b5cf6',
         icons: [
           {
-            src: 'icons/icon-192x192.png',
+            src: 'icons/icon-192x192.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml'
           },
           {
-            src: 'icons/icon-512x512.png',
+            src: 'icons/icon-512x512.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml'
           }
         ]
       },
