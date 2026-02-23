@@ -8,9 +8,10 @@ import { useStats } from '@/hooks/useStats';
 
 interface DashboardProps {
   onOpenWrapped: () => void;
+  onSelectFriend: (friend: any) => void;
 }
 
-export function Dashboard({ onOpenWrapped }: DashboardProps) {
+export function Dashboard({ onOpenWrapped, onSelectFriend }: DashboardProps) {
   const { aggregateStats: stats, tagStats: sortedTags, recentEvents, friends } = useStats();
 
   const categoryStats = stats.categoryCounts;
@@ -186,7 +187,13 @@ export function Dashboard({ onOpenWrapped }: DashboardProps) {
       </Card>
 
       <div className="h-[500px] w-full mt-6">
-        <NetworkGraph friends={friends} />
+        <NetworkGraph
+          friends={friends}
+          onNodeClick={(id) => {
+            const friend = friends.find((f) => f.id === id);
+            if (friend) onSelectFriend(friend);
+          }}
+        />
       </div>
     </div>
   );

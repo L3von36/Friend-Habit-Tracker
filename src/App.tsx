@@ -85,6 +85,11 @@ const ChatAssistant = lazy(() =>
     default: m.ChatAssistant,
   })),
 );
+const PredictiveAnalytics = lazy(() =>
+  import("@/components/AI/PredictiveAnalytics").then((m) => ({
+    default: m.PredictiveAnalytics,
+  })),
+);
 
 import { LevelUpCelebration } from "@/components/Effects/LevelUpCelebration";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -1316,6 +1321,7 @@ function App() {
             <TabsContent value="dashboard" className="space-y-6">
                <Dashboard 
                  onOpenWrapped={() => setIsWrappedOpen(true)}
+                 onSelectFriend={setSelectedFriend}
                />
             </TabsContent>
 
@@ -1581,6 +1587,13 @@ function App() {
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   <DeepInsightsCard />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PredictiveAnalytics
+                      friends={friends}
+                      events={events}
+                      memories={memories}
+                    />
+                  </Suspense>
                   <Suspense fallback={<LoadingFallback />}>
                     <Insights
                       friends={friends}
