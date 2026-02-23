@@ -80,7 +80,7 @@ export function MobileMenu({
                   onClick={onAddFriend}
                 >
                   <UserPlus className="w-4 h-4" />
-                  Add New Friend
+                  Add New Connection
                 </Button>
               </SheetClose>
               <SheetClose asChild>
@@ -90,7 +90,7 @@ export function MobileMenu({
                   onClick={onCompareFriends}
                 >
                   <GitCompare className="w-4 h-4" />
-                  Compare Friends
+                  Compare Connections
                 </Button>
               </SheetClose>
               <SheetClose asChild>

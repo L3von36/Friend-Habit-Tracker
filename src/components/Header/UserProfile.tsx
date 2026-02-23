@@ -20,6 +20,7 @@ interface UserProfileProps {
 
 export function UserProfile({ userProfile, onOpenProfile, onLogout, isGuest }: UserProfileProps) {
   const [greeting, setGreeting] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -47,8 +48,13 @@ export function UserProfile({ userProfile, onOpenProfile, onLogout, isGuest }: U
           >
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 p-[2px] shadow-lg transition-transform hover:scale-105 active:scale-95">
               <div className="w-full h-full rounded-[10px] bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
-                {userProfile.avatar ? (
-                  <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                {userProfile.avatar && !imageError ? (
+                  <img 
+                    src={userProfile.avatar} 
+                    alt={userProfile.name} 
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   <User className="w-5 h-5 text-violet-500" />
                 )}

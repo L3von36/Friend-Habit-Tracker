@@ -89,7 +89,7 @@ export function DataExport({
       await navigator.clipboard.writeText(data);
       setCopied(true);
       toast.success(isEncrypted ? 'Encrypted backup copied!' : 'Backup copied to clipboard!');
-      setTimeout(() => setCopied(true), 2000); // Fixed typo from setCopied(true) to handle timeout better if needed or just kept as is
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       toast.error('Failed to create backup');
     }
@@ -128,7 +128,7 @@ export function DataExport({
     try {
       const result = await validateAndParseBackup(textToImport, passwordToUse);
       
-      onImport(result);
+      await onImport(result);
       audioService.playSuccess();
       setImportText('');
       setImportError('');

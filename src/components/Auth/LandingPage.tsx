@@ -27,7 +27,7 @@ export function LandingPage({ onLogin, onContinueAsGuest }: LandingPageProps) {
             Friend<span className="text-violet-600">Tracker</span>.
           </h1>
           <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-            The relationship intelligence platform that helps you build deeper, more meaningful connections through data and AI traits.
+            The relationship intelligence platform for friends, family, coworkers, and partners. Build deeper connections through data and insights.
           </p>
         </div>
 

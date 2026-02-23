@@ -1,23 +1,17 @@
-import type { Friend, Event } from '@/types';
 import { CATEGORIES } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Activity, TrendingUp, TrendingDown, Calendar, Tag, Sparkles } from 'lucide-react';
 import { NetworkGraph } from './Social/NetworkGraph';
-import { RelationshipWrapped } from './Gamification/RelationshipWrapped';
-import { useState } from 'react';
 
 import { useStats } from '@/hooks/useStats';
 
 interface DashboardProps {
-  // friends and events now consumed from useStore/useStats internally or passed if needed
-  friends?: Friend[];
-  events?: Event[];
+  onOpenWrapped: () => void;
 }
 
-export function Dashboard(_props: DashboardProps) {
+export function Dashboard({ onOpenWrapped }: DashboardProps) {
   const { aggregateStats: stats, tagStats: sortedTags, recentEvents, friends } = useStats();
-  const [isWrappedOpen, setIsWrappedOpen] = useState(false);
 
   const categoryStats = stats.categoryCounts;
 
@@ -28,11 +22,11 @@ export function Dashboard(_props: DashboardProps) {
            Dashboard Overview
          </h2>
          <Button 
-            onClick={() => setIsWrappedOpen(true)}
+            onClick={() => onOpenWrapped()}
             className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg shadow-violet-500/20 border-0 rounded-xl text-sm"
          >
             <Sparkles className="w-4 h-4 mr-2 text-yellow-300" />
-            Your Friendship Wrapped
+            Your Yearly Wrapped
          </Button>
       </div>
 
@@ -45,7 +39,7 @@ export function Dashboard(_props: DashboardProps) {
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200">{stats.totalFriends}</p>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Friends</p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Connections</p>
             </div>
           </div>
         </Card>
@@ -191,19 +185,9 @@ export function Dashboard(_props: DashboardProps) {
         </div>
       </Card>
 
-      {/* Social Network Graph */}
       <div className="h-[500px] w-full mt-6">
         <NetworkGraph friends={friends} />
       </div>
-
-      {/* Wrapped UI */}
-      {/* NOTE: we pass the raw events from useStore since useStats only returns recentEvents */}
-      <RelationshipWrapped 
-         friends={friends || []}
-         events={_props.events || []}
-         isOpen={isWrappedOpen}
-         onClose={() => setIsWrappedOpen(false)}
-      />
     </div>
   );
 }

@@ -135,7 +135,7 @@ export function RelationshipWrapped({ friends, events, isOpen, onClose, userName
     }
   }, [isOpen]);
 
-  if (!stats) return null;
+  // No early return null here anymore
 
   const handleNext = () => {
     if (currentSlide < slides.length - 1) {
@@ -178,7 +178,18 @@ export function RelationshipWrapped({ friends, events, isOpen, onClose, userName
     }
   };
 
-  const slides = [
+  const slides = !stats ? [
+    <div key="null" className="flex flex-col items-center justify-center h-full text-center space-y-8 p-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white">
+      <Zap className="w-20 h-20 text-slate-500" />
+      <div>
+        <h2 className="text-4xl font-black mb-4 tracking-tight">Not Enough Data Yet</h2>
+        <p className="text-lg text-slate-400 font-medium max-w-sm mx-auto">Track more moments with your connections to unlock your Yearly Wrapped experience!</p>
+        <Button onClick={onClose} variant="outline" className="mt-8 border-slate-700 text-white hover:bg-slate-800">
+           Got it
+        </Button>
+      </div>
+    </div>
+  ] : [
     // Slide 0: Intro
     <div key="0" className="flex flex-col items-center justify-center h-full text-center space-y-8 p-8 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white">
       <Sparkles className="w-20 h-20 text-yellow-300 animate-pulse" />

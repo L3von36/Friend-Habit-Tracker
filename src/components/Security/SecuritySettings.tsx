@@ -7,11 +7,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Lock,
-  ShieldCheck,
   ShieldAlert,
   Cloud,
   RefreshCw,
@@ -122,19 +120,6 @@ export function SecuritySettings({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={isLockEnabled ? "text-green-600" : "text-slate-400"}
-        >
-          {isLockEnabled ? (
-            <ShieldCheck className="w-5 h-5" />
-          ) : (
-            <ShieldAlert className="w-5 h-5" />
-          )}
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

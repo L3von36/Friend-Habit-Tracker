@@ -37,6 +37,8 @@ import {
   Menu,
   Pin,
   Download,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import type {
   Friend,
@@ -56,6 +58,11 @@ import { AddEventForm } from "@/components/AddEventForm";
 import { Dashboard } from "@/components/Dashboard";
 import { DataExport } from "@/components/DataExport";
 import { DeepInsightsCard } from "@/components/AI/DeepInsightsCard";
+import { SecuritySettings } from "@/components/Security/SecuritySettings";
+import { RelationshipWrapped } from "@/components/Gamification/RelationshipWrapped";
+import { LandingPage } from "@/components/Auth/LandingPage";
+import { UserProfileView } from "@/components/MyProfile/UserProfileView";
+import { QuestBoard } from "@/components/Gamification/QuestBoard";
 // Lazy load heavy components for performance optimization
 const Timeline = lazy(() =>
   import("@/components/Timeline").then((m) => ({ default: m.Timeline })),
@@ -96,17 +103,13 @@ import {
   calculateEventXP,
 } from "@/lib/gamification";
 import { generateId } from "@/lib/id";
-import { QuestBoard } from "@/components/Gamification/QuestBoard";
 import { AppLock } from "@/components/Security/AppLock";
-import { SecuritySettings } from "@/components/Security/SecuritySettings";
-import { UserProfileView } from "@/components/MyProfile/UserProfileView";
 
 import { FriendListRow } from "@/components/FriendListRow";
 import { ThemeToggle } from "@/components/Header/ThemeToggle";
 import { UserProfile as HeaderUserProfile } from "@/components/Header/UserProfile";
 import { MobileMenu } from "@/components/Header/MobileMenu";
 import { audioService } from "@/lib/audio";
-import { LandingPage } from "@/components/Auth/LandingPage";
 import { mediaStorage } from "@/lib/mediaStorage";
 import { BirthdayWidget } from "@/components/BirthdayWidget";
 import { CalendarView } from "@/components/CalendarView";
@@ -156,7 +159,7 @@ function App() {
 
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("friends");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterTag, setFilterTag] = useState<string>("all");
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
@@ -165,6 +168,7 @@ function App() {
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
+  const [isWrappedOpen, setIsWrappedOpen] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<"name" | "level" | "recent" | "pinned">(
@@ -923,6 +927,55 @@ function App() {
     [events],
   );
 
+
+  const globalDialogs = (
+    <>
+      <DataExport
+        friends={friends}
+        events={events}
+        reminders={reminders}
+        goals={goals}
+        memories={memories}
+        gratitudeEntries={gratitudeEntries}
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        onImport={handleImportAllData}
+      />
+      <Dialog open={isAddFriendOpen} onOpenChange={setIsAddFriendOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg p-3 sm:p-6 max-h-[95vh] overflow-y-auto rounded-2xl">
+          <DialogHeader className="mb-2 sm:mb-4">
+            <DialogTitle className="text-xl font-bold">
+              Add New Connection
+            </DialogTitle>
+          </DialogHeader>
+          <AddFriendForm
+            onSubmit={handleAddFriend}
+            onCancel={() => setIsAddFriendOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      <Suspense fallback={null}>
+        <CompareFriends
+          friends={friends}
+          events={events}
+          isOpen={isCompareOpen}
+          onClose={() => setIsCompareOpen(false)}
+        />
+      </Suspense>
+      <SecuritySettings
+        open={isSecurityOpen}
+        onOpenChange={setIsSecurityOpen}
+      />
+      <RelationshipWrapped
+        friends={friends}
+        events={events}
+        isOpen={isWrappedOpen}
+        onClose={() => setIsWrappedOpen(false)}
+        userName={userProfile.name}
+      />
+    </>
+  );
+
   if (!isAuthenticated && !isGuest) {
     return (
       <div className="min-h-screen">
@@ -931,6 +984,7 @@ function App() {
           onLogin={handleLogin}
           onContinueAsGuest={() => setIsGuest(true)}
         />
+        {globalDialogs}
       </div>
     );
   }
@@ -949,6 +1003,7 @@ function App() {
           onUpdateProfile={setUserProfile}
           onDeleteEvent={handleDeleteEvent}
         />
+        {globalDialogs}
       </div>
     );
   }
@@ -1030,7 +1085,7 @@ function App() {
           <DialogContent className="w-[calc(100vw-2rem)] max-w-lg p-3 sm:p-6 max-h-[95vh] overflow-y-auto rounded-2xl">
             <DialogHeader className="mb-2 sm:mb-4">
               <DialogTitle className="text-xl font-bold">
-                Edit Friend
+                Edit Connection
               </DialogTitle>
             </DialogHeader>
             {editingFriend && (
@@ -1044,39 +1099,7 @@ function App() {
           </DialogContent>
         </Dialog>
 
-        {/* Export Dialog */}
-        {isExportOpen && (
-          <DataExport
-            friends={friends}
-            events={events}
-            reminders={reminders}
-            goals={goals}
-            memories={memories}
-            gratitudeEntries={gratitudeEntries}
-            isOpen={isExportOpen}
-            onClose={() => setIsExportOpen(false)}
-            onImport={handleImportAllData}
-          />
-        )}
-
-        {/* Compare Friends Dialog */}
-        <Dialog open={isCompareOpen} onOpenChange={setIsCompareOpen}>
-          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl p-3 sm:p-6 max-h-[95vh] overflow-y-auto rounded-2xl">
-            <DialogHeader className="mb-2 sm:mb-4">
-              <DialogTitle className="text-xl font-bold">
-                Compare Friends
-              </DialogTitle>
-            </DialogHeader>
-            <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-              <CompareFriends
-                friends={friends}
-                events={events}
-                isOpen={isCompareOpen}
-                onClose={() => setIsCompareOpen(false)}
-              />
-            </Suspense>
-          </DialogContent>
-        </Dialog>
+        {globalDialogs}
       </div>
     );
   }
@@ -1178,38 +1201,28 @@ function App() {
                   >
                     <GitCompare className="w-5 h-5" />
                   </Button>
-                  <SecuritySettings
-                    open={isSecurityOpen}
-                    onOpenChange={setIsSecurityOpen}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSecurityOpen(true)}
+                    className={useStore.getState().isAuthenticated ? "text-green-600" : "text-slate-400"}
+                    title="Security Settings"
+                  >
+                    <ShieldCheck className="w-5 h-5" />
+                  </Button>
                 </div>
 
                 <div className="hidden md:block h-8 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
 
                 {/* Desktop-only Add Friend Button */}
                 <div className="hidden sm:block">
-                  <Dialog
-                    open={isAddFriendOpen}
-                    onOpenChange={setIsAddFriendOpen}
+                  <Button 
+                    onClick={() => setIsAddFriendOpen(true)}
+                    className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/25 h-11 px-6 rounded-xl font-bold transition-all hover:scale-[1.02] active:scale-95"
                   >
-                    <DialogTrigger asChild>
-                      <Button className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/25 h-11 px-6 rounded-xl font-bold transition-all hover:scale-[1.02] active:scale-95">
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Add Friend
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg p-3 sm:p-6 max-h-[95vh] overflow-y-auto rounded-2xl">
-                      <DialogHeader className="mb-2 sm:mb-4">
-                        <DialogTitle className="text-xl font-bold">
-                          Add New Friend
-                        </DialogTitle>
-                      </DialogHeader>
-                      <AddFriendForm
-                        onSubmit={handleAddFriend}
-                        onCancel={() => setIsAddFriendOpen(false)}
-                      />
-                    </DialogContent>
-                  </Dialog>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Connection
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1248,11 +1261,32 @@ function App() {
           >
             <TabsList className="hidden sm:flex justify-start sm:justify-center w-full overflow-x-auto no-scrollbar bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-1 gap-1">
               <TabsTrigger
-                value="friends"
+                value="dashboard"
+                className="flex-1 min-w-[75px] flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2"
+              >
+                <LayoutGrid className="w-4 h-4 shrink-0" />
+                <span className="text-sm">Home</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="connections"
                 className="flex-1 min-w-[75px] flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2"
               >
                 <Users className="w-4 h-4 shrink-0" />
-                <span className="text-sm">Friends</span>
+                <span className="text-sm">People</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="ai_hub"
+                className="flex-1 min-w-[75px] flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2"
+              >
+                <BrainCircuit className="w-4 h-4 shrink-0" />
+                <span className="text-sm">AI Hub</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="quests"
+                className="flex-1 min-w-[75px] flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2"
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span className="text-sm">Quests</span>
               </TabsTrigger>
               <TabsTrigger
                 value="calendar"
@@ -1269,13 +1303,6 @@ function App() {
                 <span className="text-sm">Timeline</span>
               </TabsTrigger>
               <TabsTrigger
-                value="insights"
-                className="flex-1 min-w-[75px] flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2"
-              >
-                <BarChart3 className="w-4 h-4 shrink-0" />
-                <span className="text-sm">Insights</span>
-              </TabsTrigger>
-              <TabsTrigger
                 value="groups"
                 className="flex-1 min-w-[75px] flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2"
               >
@@ -1284,7 +1311,13 @@ function App() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="friends" className="space-y-6">
+            <TabsContent value="dashboard" className="space-y-6">
+               <Dashboard 
+                 onOpenWrapped={() => setIsWrappedOpen(true)}
+               />
+            </TabsContent>
+
+            <TabsContent value="connections" className="space-y-6">
               {/* Pinned Friends Drop Zone */}
               <div
                 onDragEnter={(e) => {
@@ -1315,17 +1348,17 @@ function App() {
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
-                    placeholder="Search friends or traits..."
+                    placeholder="Search connections or traits..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm"
-                    aria-label="Search friends or traits"
+                    aria-label="Search connections or traits"
                   />
                 </div>
                 <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                   <span className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    {friends.length} friends
+                    {friends.length} connections
                   </span>
                   <span className="flex items-center gap-2">
                     <Activity className="w-4 h-4" />
@@ -1334,54 +1367,7 @@ function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2">
-                  <Dashboard friends={friends} events={events} />
-                </div>
-                <div className="space-y-6">
-                  <DeepInsightsCard />
-                  <ChatAssistant
-                    friends={friends}
-                    events={events}
-                    memories={memories}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 pb-2">
-                <Switch
-                  id="semantic-mode"
-                  checked={isSemanticSearch}
-                  onCheckedChange={setIsSemanticSearch}
-                />
-                <Label
-                  htmlFor="semantic-mode"
-                  className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400"
-                >
-                  <BrainCircuit className="w-4 h-4 text-violet-500" />
-                  AI Semantic Search{" "}
-                  {isSearching && (
-                    <span className="text-xs animate-pulse text-violet-500">
-                      (Searching...)
-                    </span>
-                  )}
-                </Label>
-              </div>
-
-              <QuestBoard
-                quests={quests}
-                onRefresh={() => {}}
-                onClaim={(id) => {
-                  audioService.playSuccess();
-                  setQuests((prev) =>
-                    prev.map((q) =>
-                      q.id === id ? { ...q, completed: true } : q,
-                    ),
-                  );
-                  toast.success("Quests refreshed!");
-                }}
-              />
-
-              {/* Friend List Controls */}
+              {/* Connection List Controls */}
               <div className="flex flex-col gap-4 bg-white/50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm">
                 <div className="flex flex-col xs:flex-row items-center gap-3 w-full">
                   <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg self-start xs:self-center">
@@ -1439,6 +1425,26 @@ function App() {
                 </div>
               </div>
 
+              <div className="flex items-center space-x-2 pb-2">
+                <Switch
+                  id="semantic-mode"
+                  checked={isSemanticSearch}
+                  onCheckedChange={setIsSemanticSearch}
+                />
+                <Label
+                  htmlFor="semantic-mode"
+                  className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400"
+                >
+                  <BrainCircuit className="w-4 h-4 text-violet-500" />
+                  AI Semantic Search{" "}
+                  {isSearching && (
+                    <span className="text-xs animate-pulse text-violet-500">
+                      (Searching...)
+                    </span>
+                  )}
+                </Label>
+              </div>
+
               {friends.length === 0 ? (
                 <div className="text-center py-20">
                   <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 flex items-center justify-center">
@@ -1456,7 +1462,7 @@ function App() {
                     className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Friend
+                    Add Your First Connection
                   </Button>
                 </div>
               ) : sortedFriends.length === 0 ? (
@@ -1569,6 +1575,33 @@ function App() {
               </div>
             </TabsContent>
 
+            <TabsContent value="ai_hub" className="space-y-6">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <DeepInsightsCard />
+                  <ChatAssistant
+                    friends={friends}
+                    events={events}
+                    memories={memories}
+                  />
+               </div>
+            </TabsContent>
+
+            <TabsContent value="quests" className="space-y-6">
+               <QuestBoard
+                quests={quests}
+                onRefresh={() => {}}
+                onClaim={(id) => {
+                  audioService.playSuccess();
+                  setQuests((prev) =>
+                    prev.map((q) =>
+                      q.id === id ? { ...q, completed: true } : q,
+                    ),
+                  );
+                  toast.success("Quests refreshed!");
+                }}
+              />
+            </TabsContent>
+
             <TabsContent value="calendar">
               <CalendarView
                 friends={friends}
@@ -1651,7 +1684,7 @@ function App() {
               className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
             >
               <Users className="w-5 h-5" />
-              <span className="text-[10px] font-medium">Friends</span>
+              <span className="text-[10px] font-medium">People</span>
             </TabsTrigger>
             <TabsTrigger
               value="calendar"
@@ -1684,6 +1717,7 @@ function App() {
             </TabsList>
           </Tabs>
         </nav>
+        {globalDialogs}
       </ErrorBoundary>
     </div>
   );

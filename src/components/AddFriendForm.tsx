@@ -146,7 +146,7 @@ export function AddFriendForm({
             id="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Friend's Name"
+            placeholder="Full Name"
             required
             className="h-10 text-sm"
           />
@@ -320,7 +320,7 @@ export function AddFriendForm({
           className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white"
           disabled={!name.trim()}
         >
-          {isEditing ? "Update Friend" : "Add Friend"}
+          {isEditing ? "Update Connection" : "Add Connection"}
         </Button>
       </div>
     </form>
