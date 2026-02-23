@@ -18,6 +18,12 @@ import {
   GitCompare,
   User,
   Settings,
+  LayoutGrid,
+  BrainCircuit,
+  Sparkles,
+  Activity,
+  Calendar,
+  Users2,
 } from "lucide-react";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 
@@ -29,6 +35,8 @@ type MobileMenuProps = {
   onCompareFriends: () => void;
   onOpenProfile: () => void;
   onOpenSecuritySettings: () => void;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 };
 
 export function MobileMenu({
@@ -39,6 +47,8 @@ export function MobileMenu({
   onCompareFriends,
   onOpenProfile,
   onOpenSecuritySettings,
+  activeTab,
+  onTabChange,
 }: MobileMenuProps) {
   return (
     <Sheet>
@@ -67,7 +77,39 @@ export function MobileMenu({
           </div>
         </SheetHeader>
 
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 overflow-y-auto max-h-[calc(100vh-80px)]">
+          <div>
+            <h3 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Navigation
+            </h3>
+            <div className="grid grid-cols-1 gap-1">
+              {[
+                { id: "dashboard", label: "Home", icon: LayoutGrid },
+                { id: "connections", label: "People", icon: Users },
+                { id: "ai_hub", label: "AI Hub", icon: BrainCircuit },
+                { id: "quests", label: "Quests", icon: Sparkles },
+                { id: "calendar", label: "Calendar", icon: Calendar },
+                { id: "timeline", label: "Activity", icon: Activity },
+                { id: "groups", label: "Groups", icon: Users2 },
+              ].map((item) => (
+                <SheetClose key={item.id} asChild>
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start gap-3 h-12 rounded-xl text-sm font-medium transition-all ${
+                      activeTab === item.id
+                        ? "bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"
+                        : "text-slate-600 dark:text-slate-400"
+                    }`}
+                    onClick={() => onTabChange(item.id)}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </Button>
+                </SheetClose>
+              ))}
+            </div>
+          </div>
+
           <div>
             <h3 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Actions

@@ -1178,6 +1178,8 @@ function App() {
                     onCompareFriends={() => setIsCompareOpen(true)}
                     onOpenProfile={() => setIsUserProfileOpen(true)}
                     onOpenSecuritySettings={() => setIsSecurityOpen(true)}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
                   />
                 </div>
 
@@ -1340,7 +1342,7 @@ function App() {
                 className="flex items-center justify-center gap-2 py-2 px-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl transition-all text-slate-400 dark:text-slate-500 text-sm"
               >
                 <Pin className="w-4 h-4" />
-                <span>Drop friend here to {pinnedFriendIds.length > 0 ? 'unpin' : 'pin'}</span>
+                <span>Drop connection here to {pinnedFriendIds.length > 0 ? 'unpin' : 'pin'}</span>
               </div>
 
               {/* Search and Stats */}
@@ -1451,10 +1453,10 @@ function App() {
                     <Users className="w-10 h-10 text-violet-500" />
                   </div>
                   <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
-                    No friends yet
+                    No connections yet
                   </h3>
                   <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md mx-auto">
-                    Start tracking your friends' habits and behaviors to better
+                    Start tracking your connections' habits and behaviors to better
                     understand them
                   </p>
                   <Button
@@ -1468,7 +1470,7 @@ function App() {
               ) : sortedFriends.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-slate-500 dark:text-slate-400">
-                    No friends match your search
+                    No connections match your search
                   </p>
                 </div>
               ) : (
@@ -1554,7 +1556,7 @@ function App() {
                               }
                               className="text-slate-500"
                             >
-                              Load more friends...
+                              Load more connections...
                             </Button>
                           </div>
                         )}
@@ -1576,14 +1578,25 @@ function App() {
             </TabsContent>
 
             <TabsContent value="ai_hub" className="space-y-6">
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="space-y-6">
                   <DeepInsightsCard />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <Insights
+                      friends={friends}
+                      events={events}
+                      onSelectFriend={setSelectedFriend}
+                    />
+                  </Suspense>
+                </div>
+                <div>
                   <ChatAssistant
                     friends={friends}
                     events={events}
                     memories={memories}
                   />
-               </div>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="quests" className="space-y-6">
@@ -1680,39 +1693,39 @@ function App() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-5 h-16 w-full bg-transparent p-0">
             <TabsTrigger
-              value="friends"
+              value="dashboard"
+              className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
+            >
+              <LayoutGrid className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Home</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="connections"
               className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
             >
               <Users className="w-5 h-5" />
               <span className="text-[10px] font-medium">People</span>
             </TabsTrigger>
             <TabsTrigger
-              value="calendar"
+              value="ai_hub"
               className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
             >
-              <Calendar className="w-5 h-5" />
-              <span className="text-[10px] font-medium">Calendar</span>
+              <BrainCircuit className="w-5 h-5" />
+              <span className="text-[10px] font-medium">AI Hub</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="quests"
+              className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Quests</span>
             </TabsTrigger>
             <TabsTrigger
               value="timeline"
               className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
             >
               <Activity className="w-5 h-5" />
-              <span className="text-[10px] font-medium">Timeline</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="insights"
-              className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="text-[10px] font-medium">Insights</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="groups"
-              className="flex flex-col gap-1 h-full data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/20 data-[state=active]:text-violet-600"
-            >
-              <Users2 className="w-5 h-5" />
-              <span className="text-[10px] font-medium">Groups</span>
+              <span className="text-[10px] font-medium">Activity</span>
             </TabsTrigger>
             </TabsList>
           </Tabs>
