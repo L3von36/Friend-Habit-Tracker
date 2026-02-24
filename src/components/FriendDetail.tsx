@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SmartDrafts } from './SmartDrafts';
-import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles, Brain, Paperclip, Share2, BookOpen, Users2, Printer, Network } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles, Brain, Paperclip, Share2, BookOpen, Users2, Printer, Network, MoreHorizontal } from 'lucide-react';
 import { LoomLogo } from './Common/LoomLogo';
 import { MediaGallery } from './Media/MediaGallery';
 import { calculateHealthScore } from '@/lib/healthScore';
@@ -28,6 +28,7 @@ import { IntroduceFriends } from './Social/IntroduceFriends';
 import { EditConnections } from './Social/EditConnections';
 import { generateNarrativeSummary } from '@/lib/narrativeEngine';
 import { useState, useMemo } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface FriendDetailProps {
   friend: Friend;
@@ -141,34 +142,74 @@ export function FriendDetail({
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button variant="ghost" size="icon" title="Share Profile" onClick={() => { audioService.playClick(); setIsShareOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
-                <Share2 className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" title="Shared Notes" onClick={() => { audioService.playClick(); setIsNotesOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
-                <BookOpen className="w-4 h-4" />
-              </Button>
-              {allFriends.length > 1 && (
-                <>
-                  <Button variant="ghost" size="icon" title="Introduce to a Friend" onClick={() => { audioService.playClick(); setIsIntroduceOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
-                    <Users2 className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" title="Edit Connections" onClick={() => { audioService.playClick(); setIsConnectionsOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
-                    <Network className="w-4 h-4" />
-                  </Button>
-                </>
-              )}
-              <Button variant="ghost" size="icon" title="Print Report" onClick={() => { audioService.playClick(); window.print(); }} className="rounded-full text-slate-500 hover:text-violet-600">
-                <Printer className="w-4 h-4" />
-              </Button>
+              <div className="hidden sm:flex items-center gap-1.5">
+                <Button variant="ghost" size="icon" title="Share Profile" onClick={() => { audioService.playClick(); setIsShareOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                  <Share2 className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" title="Shared Notes" onClick={() => { audioService.playClick(); setIsNotesOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                  <BookOpen className="w-4 h-4" />
+                </Button>
+                {allFriends.length > 1 && (
+                  <>
+                    <Button variant="ghost" size="icon" title="Introduce to a Friend" onClick={() => { audioService.playClick(); setIsIntroduceOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                      <Users2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" title="Edit Connections" onClick={() => { audioService.playClick(); setIsConnectionsOpen(true); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                      <Network className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                <Button variant="ghost" size="icon" title="Print Report" onClick={() => { audioService.playClick(); window.print(); }} className="rounded-full text-slate-500 hover:text-violet-600">
+                  <Printer className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="sm:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => { audioService.playClick(); setIsShareOpen(true); }}>
+                      <Share2 className="mr-2 h-4 w-4" />
+                      <span>Share</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { audioService.playClick(); setIsNotesOpen(true); }}>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      <span>Notes</span>
+                    </DropdownMenuItem>
+                    {allFriends.length > 1 && (
+                      <>
+                        <DropdownMenuItem onClick={() => { audioService.playClick(); setIsIntroduceOpen(true); }}>
+                          <Users2 className="mr-2 h-4 w-4" />
+                          <span>Introduce</span>
+                        </DropdownMenuItem>
+                         <DropdownMenuItem onClick={() => { audioService.playClick(); setIsConnectionsOpen(true); }}>
+                          <Network className="mr-2 h-4 w-4" />
+                          <span>Connections</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={() => { audioService.playClick(); window.print(); }}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      <span>Print</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
               <Button variant="ghost" size="icon" onClick={onEditFriend} className="rounded-full">
                 <Edit2 className="w-4 h-4" />
               </Button>
+
               <Button
                 onClick={onAddEvent}
-                className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
+                className="bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-full sm:rounded-md h-9 w-9 sm:w-auto sm:px-4 flex items-center justify-center"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Log Event
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Log</span>
               </Button>
             </div>
           </div>

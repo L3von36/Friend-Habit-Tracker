@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { audioService } from "@/lib/audio";
 import { Input } from "@/components/ui/input";
@@ -23,14 +23,27 @@ export function AddFriendForm({
   isEditing,
 }: AddFriendFormProps) {
   const [name, setName] = useState(initialData?.name || "");
-  const [relationship, setRelationship] = useState(
-    initialData?.relationship || "",
-  );
+  const [relationship, setRelationship] = useState("");
+  const [otherRelationship, setOtherRelationship] = useState("");
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [traits, setTraits] = useState<string[]>(initialData?.traits || []);
   const [avatar, setAvatar] = useState<string | undefined>(initialData?.avatar);
   const [metVia, setMetVia] = useState(initialData?.metVia || "");
   const [coreValue, setCoreValue] = useState(initialData?.coreValue || "");
+  const [birthday, setBirthday] = useState(initialData?.birthday || "");
+  const [newTrait, setNewTrait] = useState("");
+
+  useEffect(() => {
+    if (initialData?.relationship) {
+      if (RELATIONSHIP_TYPES.includes(initialData.relationship)) {
+        setRelationship(initialData.relationship);
+      } else {
+        setRelationship("Other");
+        setOtherRelationship(initialData.relationship);
+      }
+    }
+  }, [initialData]);
+
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -49,32 +62,28 @@ export function AddFriendForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const finalRelationship = relationship === "Other" ? otherRelationship : relationship;
+    if (!name.trim() || !finalRelationship.trim()) return;
+
+    const sharedProps = {
+      name: name.trim(),
+      relationship: finalRelationship.trim(),
+      notes: notes.trim(),
+      traits,
+      birthday: birthday || undefined,
+      avatar,
+      metVia: metVia.trim(),
+      coreValue: coreValue.trim(),
+    };
 
     if (isEditing && initialData) {
       onSubmit({
         ...initialData,
-        name: name.trim(),
-        relationship: relationship.trim(),
-        notes: notes.trim(),
-        traits,
-        birthday: birthday || undefined,
-        avatar,
-        metVia: metVia.trim(),
-        coreValue: coreValue.trim(),
-        giftIdeas: initialData.giftIdeas || [],
-        interests: initialData.interests || [],
+        ...sharedProps,
       });
     } else {
       onSubmit({
-        name: name.trim(),
-        relationship: relationship.trim(),
-        notes: notes.trim(),
-        traits,
-        birthday: birthday || undefined,
-        avatar,
-        metVia: metVia.trim(),
-        coreValue: coreValue.trim(),
+        ...sharedProps,
         giftIdeas: [],
         interests: [],
         xp: 0,
@@ -84,6 +93,7 @@ export function AddFriendForm({
       });
     }
   };
+
 
   const addTrait = () => {
     if (newTrait.trim() && !traits.includes(newTrait.trim())) {
@@ -153,7 +163,7 @@ export function AddFriendForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4">
         <div className="space-y-1 sm:space-y-2">
           <Label
             htmlFor="relationship"
@@ -175,6 +185,21 @@ export function AddFriendForm({
             ))}
           </select>
         </div>
+        {relationship === 'Other' && (
+          <div className="space-y-1 sm:space-y-2">
+            <Label htmlFor="otherRelationship" className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+              Custom Type
+            </Label>
+            <Input
+              id="otherRelationship"
+              value={otherRelationship}
+              onChange={(e) => setOtherRelationship(e.target.value)}
+              placeholder="Please specify relationship type"
+              required
+              className="h-10 text-sm"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -326,7 +351,7 @@ export function AddFriendForm({
         <Button
           type="submit"
           className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white"
-          disabled={!name.trim()}
+          disabled={!name.trim() || !(relationship === 'Other' ? otherRelationship : relationship).trim()}
         >
           {isEditing ? "Update Connection" : "Add Connection"}
         </Button>

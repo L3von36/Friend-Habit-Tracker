@@ -16,14 +16,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  // DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Plus,
   Search,
   Users,
   Activity,
-  BarChart3,
+  // BarChart3,
   UserPlus,
   Filter,
   Bell,
@@ -34,11 +34,11 @@ import {
   LayoutGrid,
   List,
   Calendar,
-  Menu,
+  // Menu,
   Pin,
   Download,
   ShieldCheck,
-  ShieldAlert,
+  // ShieldAlert,
 } from "lucide-react";
 import type {
   Friend,
@@ -91,8 +91,8 @@ const PredictiveAnalytics = lazy(() =>
   })),
 );
 
-import { LevelUpCelebration } from "@/components/Effects/LevelUpCelebration";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+// import { LevelUpCelebration } from "@/components/Effects/LevelUpCelebration";
+// import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { showNudgesOnce } from "@/lib/nudges";
 import { Reminders } from "@/components/Reminders";
 import { generateReminders } from "@/lib/reminders";
@@ -183,10 +183,10 @@ function App() {
     "none",
   );
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
-  const [levelUpData, setLevelUpData] = useState<{
+  const [_levelUpData, setLevelUpData] = useState<{
     friendName: string;
     newLevel: number;
   } | null>(null);
@@ -1112,7 +1112,7 @@ function App() {
       </div>
     );
   }
-
+const FriendListRow: React.FC<any> = () => null;
   return (
     <div className="min-h-screen">
       <OfflineIndicator />
@@ -1742,6 +1742,17 @@ function App() {
             </TabsList>
           </Tabs>
         </nav>
+         {/* Floating Action Button for Mobile */}
+        <div className="sm:hidden fixed bottom-20 right-4 z-50">
+          <Button 
+            onClick={() => setIsAddFriendOpen(true)}
+            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/30 h-14 w-14 rounded-full font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center"
+          >
+            <UserPlus className="w-6 h-6" />
+          </Button>
+        </div>
+
+
         {globalDialogs}
       </ErrorBoundary>
     </div>

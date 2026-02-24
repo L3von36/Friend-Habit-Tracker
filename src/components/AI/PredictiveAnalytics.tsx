@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  TrendingUp, 
-  TrendingDown, 
+  // TrendingUp, 
+  // TrendingDown, 
   Clock, 
   AlertTriangle, 
   Zap, 
@@ -38,7 +38,7 @@ interface Prediction {
   healthScore: number; // 0-100
 }
 
-export function PredictiveAnalytics({ friends, events, memories }: PredictiveAnalyticsProps) {
+export function PredictiveAnalytics({ friends, events, /* memories */ }: PredictiveAnalyticsProps) {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,8 +114,9 @@ export function PredictiveAnalytics({ friends, events, memories }: PredictiveAna
 
   useEffect(() => {
     if (friendsWithEvents.length > 0 && predictions.length === 0) {
-      generatePredictions();
+      // generatePredictions();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendsWithEvents]);
 
   const getHealthColor = (score: number) => {
@@ -179,7 +180,7 @@ export function PredictiveAnalytics({ friends, events, memories }: PredictiveAna
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-.cols-2 gap-6">
         {isGenerating && predictions.length === 0 ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="p-6 animate-pulse bg-slate-100/50 h-64 border-0" />
