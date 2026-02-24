@@ -60,7 +60,7 @@ function generateShareHTML(friend: Friend, events: Event[]): string {
     </div>
     ${friend.traits.length ? `<div class="section"><div class="section-title">Traits</div><div class="badges">${friend.traits.map(t => `<span class="badge">${t}</span>`).join('')}</div></div>` : ''}
     ${friend.interests.length ? `<div class="section"><div class="section-title">Interests</div><div class="badges">${friend.interests.map(t => `<span class="badge">${t}</span>`).join('')}</div></div>` : ''}
-    <div class="footer">Generated with FriendTracker</div>
+    <div class="footer">Generated with Loom</div>
   </div>
 </body>
 </html>`;

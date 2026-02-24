@@ -4,6 +4,7 @@ import {
   Sun, Moon, Zap, Minus, Rocket, 
   ChevronDown, Check 
 } from 'lucide-react';
+import { LoomLogo } from '../Common/LoomLogo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Theme = 'light' | 'dark' | 'vibrant' | 'minimalist' | 'retro';
+type Theme = 'light' | 'dark' | 'vibrant' | 'minimalist' | 'retro' | 'loom';
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -50,6 +51,7 @@ export function ThemeToggle() {
     { id: 'vibrant', label: 'Vibrant', icon: Zap, color: 'text-violet-500' },
     { id: 'minimalist', label: 'Minimalist', icon: Minus, color: 'text-slate-500' },
     { id: 'retro', label: 'Retro', icon: Rocket, color: 'text-pink-500' },
+    { id: 'loom', label: 'Loom', icon: LoomLogo, color: 'text-indigo-600' },
   ];
 
   const activeTheme = themes.find(t => t.id === theme) || themes[0];

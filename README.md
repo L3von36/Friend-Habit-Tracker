@@ -1,6 +1,6 @@
-# Friend Habit Tracker
+# Loom
 
-Friend Habit Tracker is a modern, AI-powered personal CRM and relationship management web application. It is designed to help you nurture your relationships, track interactions, and gain meaningful psychological insights into your social life.
+Loom is a modern, AI-powered personal CRM and relationship management web application. It is designed to help you nurture your relationships, track interactions, and gain meaningful psychological insights into your social life.
 
 ## ✨ Features
 
@@ -12,7 +12,7 @@ Friend Habit Tracker is a modern, AI-powered personal CRM and relationship manag
 
 ## 🧠 Advanced AI Superpowers
 
-Friend Habit Tracker features a completely decoupled, flexible **Hybrid AI System** that elevates your relationship management experience:
+Loom features a completely decoupled, flexible **Hybrid AI System** that elevates your relationship management experience:
 
 - **🔐 Privacy-First Local AI**: By default, the application uses an entirely browser-based, privacy-preserving semantic search model (Xenova Transformers / `all-MiniLM-L6-v2`) to provide offline intelligence.
 - **⚡ Groq Llama 3.1 Integration**: Unlock cloud intelligence! By providing a Groq API Key in your Security Settings, you completely bypass the local models in favor of the blazing-fast `llama-3.1-8b-instant`.

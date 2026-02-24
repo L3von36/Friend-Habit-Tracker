@@ -1,8 +1,9 @@
 import { CATEGORIES } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Activity, TrendingUp, TrendingDown, Calendar, Tag, Sparkles } from 'lucide-react';
-import { NetworkGraph } from './Social/NetworkGraph';
+import { Activity, TrendingUp, TrendingDown, Calendar, Tag, Sparkles } from 'lucide-react';
+import { LoomLogo } from './Common/LoomLogo';
+import { MasterWeave } from './Social/MasterWeave';
 
 import { useStats } from '@/hooks/useStats';
 
@@ -19,8 +20,9 @@ export function Dashboard({ onOpenWrapped, onSelectFriend }: DashboardProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2">
-         <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-           Dashboard Overview
+         <h2 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent flex items-center gap-2">
+           <LoomLogo className="w-8 h-8" />
+           Loom Hub
          </h2>
          <Button 
             onClick={() => onOpenWrapped()}
@@ -36,7 +38,7 @@ export function Dashboard({ onOpenWrapped, onSelectFriend }: DashboardProps) {
         <Card className="p-3 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-violet-500" />
+              <LoomLogo className="w-5 h-5 sm:w-6 sm:h-6 text-violet-500" />
             </div>
             <div>
               <p className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200">{stats.totalFriends}</p>
@@ -186,13 +188,10 @@ export function Dashboard({ onOpenWrapped, onSelectFriend }: DashboardProps) {
         </div>
       </Card>
 
-      <div className="h-[500px] w-full mt-6">
-        <NetworkGraph
+      <div className="mt-6">
+        <MasterWeave
           friends={friends}
-          onNodeClick={(id) => {
-            const friend = friends.find((f) => f.id === id);
-            if (friend) onSelectFriend(friend);
-          }}
+          onSelectFriend={onSelectFriend}
         />
       </div>
     </div>

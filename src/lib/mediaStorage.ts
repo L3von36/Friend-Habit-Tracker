@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from 'idb';
 import { generateId } from './id';
 
-interface FriendTrackerDB extends DBSchema {
+interface LoomDB extends DBSchema {
     media: {
         key: string;
         value: {
@@ -15,11 +15,11 @@ interface FriendTrackerDB extends DBSchema {
     };
 }
 
-const DB_NAME = 'friend-tracker-media';
+const DB_NAME = 'loom-media';
 const STORE_NAME = 'media';
 
 async function getDB() {
-    return openDB<FriendTrackerDB>(DB_NAME, 1, {
+    return openDB<LoomDB>(DB_NAME, 1, {
         upgrade(db) {
             const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
             store.createIndex('by-date', 'createdAt');

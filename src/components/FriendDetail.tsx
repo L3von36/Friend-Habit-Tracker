@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SmartDrafts } from './SmartDrafts';
 import { ArrowLeft, Plus, Calendar, Tag, TrendingUp, TrendingDown, Minus, Edit2, Trash2, Activity, BarChart3, Smile, Zap, MessageCircle, Gift, Target, Camera, Heart, Sparkles, Brain, Paperclip, Share2, BookOpen, Users2, Printer, Network } from 'lucide-react';
+import { LoomLogo } from './Common/LoomLogo';
 import { MediaGallery } from './Media/MediaGallery';
 import { calculateHealthScore } from '@/lib/healthScore';
 import { HealthScoreCard } from './HealthScoreCard';
@@ -25,6 +26,7 @@ import { ShareFriendCard } from './Social/ShareFriendCard';
 import { CollaborativeNotes } from './Social/CollaborativeNotes';
 import { IntroduceFriends } from './Social/IntroduceFriends';
 import { EditConnections } from './Social/EditConnections';
+import { generateNarrativeSummary } from '@/lib/narrativeEngine';
 import { useState, useMemo } from 'react';
 
 interface FriendDetailProps {
@@ -88,6 +90,7 @@ export function FriendDetail({
   const initials = friend.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const healthScore = calculateHealthScore(friend, events);
   const profile = useMemo(() => generatePsychologicalProfile(friend, events, memories), [friend, events, memories]);
+  const narrative = useMemo(() => generateNarrativeSummary(friend, events), [friend, events]);
   
   const sentimentScore = stats.totalEvents > 0 
     ? ((stats.positiveEvents - stats.negativeEvents) / stats.totalEvents * 100).toFixed(0)
@@ -279,6 +282,20 @@ export function FriendDetail({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column - Info & Categories */}
               <div className="space-y-6">
+                {/* The Story of Us - Narrative Engine */}
+                <Card className="p-6 bg-gradient-to-br from-indigo-50/50 to-violet-50/50 dark:from-indigo-900/10 dark:to-violet-900/10 backdrop-blur-sm border-0 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <LoomLogo className="w-12 h-12" />
+                  </div>
+                  <h3 className="font-bold text-indigo-900 dark:text-indigo-400 mb-2 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    The Story of Us
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm italic leading-relaxed relative z-10">
+                    "{narrative}"
+                  </p>
+                </Card>
+
                 {/* About */}
                 <Card className="p-6 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-0">
                   <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">About</h3>
@@ -555,6 +572,7 @@ export function FriendDetail({
          onClose={() => setIsConnectionsOpen(false)}
          onUpdateConnections={onUpdateConnections}
       />
+      
     </div>
   );
 }

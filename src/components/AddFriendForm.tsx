@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Calendar, Camera } from "lucide-react";
 import type { Friend } from "@/types";
-import { FRIEND_COLORS, COMMON_TAGS, RELATIONSHIP_TYPES } from "@/types";
+import { COMMON_TAGS, RELATIONSHIP_TYPES } from "@/types";
 
 interface AddFriendFormProps {
   onSubmit: (friend: Friend | Omit<Friend, "id" | "createdAt">) => void;
@@ -28,12 +28,9 @@ export function AddFriendForm({
   );
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [traits, setTraits] = useState<string[]>(initialData?.traits || []);
-  const [selectedColor, setSelectedColor] = useState(
-    initialData?.color || FRIEND_COLORS[0],
-  );
-  const [birthday, setBirthday] = useState(initialData?.birthday || "");
-  const [newTrait, setNewTrait] = useState("");
   const [avatar, setAvatar] = useState<string | undefined>(initialData?.avatar);
+  const [metVia, setMetVia] = useState(initialData?.metVia || "");
+  const [coreValue, setCoreValue] = useState(initialData?.coreValue || "");
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,9 +58,10 @@ export function AddFriendForm({
         relationship: relationship.trim(),
         notes: notes.trim(),
         traits,
-        color: selectedColor,
         birthday: birthday || undefined,
         avatar,
+        metVia: metVia.trim(),
+        coreValue: coreValue.trim(),
         giftIdeas: initialData.giftIdeas || [],
         interests: initialData.interests || [],
       });
@@ -73,14 +71,16 @@ export function AddFriendForm({
         relationship: relationship.trim(),
         notes: notes.trim(),
         traits,
-        color: selectedColor,
         birthday: birthday || undefined,
         avatar,
+        metVia: metVia.trim(),
+        coreValue: coreValue.trim(),
         giftIdeas: [],
         interests: [],
         xp: 0,
         level: 1,
         streak: 0,
+        color: 'bg-indigo-500', // Default to Loom Indigo
       });
     }
   };
@@ -196,24 +196,32 @@ export function AddFriendForm({
             />
           </div>
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="space-y-1 sm:space-y-2">
-          <Label className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-            Profile Color
+          <Label htmlFor="metVia" className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+            Met Via / First Impression
           </Label>
-          <div className="flex flex-wrap gap-1 sm:gap-2">
-            {FRIEND_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => {
-                  audioService.playClick();
-                  setSelectedColor(color);
-                }}
-                className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg ${color} transition-all shadow-sm ${selectedColor === color ? "ring-2 ring-offset-2 ring-violet-500 scale-110" : "hover:scale-105 active:scale-95"}`}
-              />
-            ))}
-          </div>
+          <Input
+            id="metVia"
+            value={metVia}
+            onChange={(e) => setMetVia(e.target.value)}
+            placeholder="e.g. Art school, Mutual friend..."
+            className="h-10 text-sm"
+          />
+        </div>
+        <div className="space-y-1 sm:space-y-2">
+          <Label htmlFor="coreValue" className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+            Core Value
+          </Label>
+          <Input
+            id="coreValue"
+            value={coreValue}
+            onChange={(e) => setCoreValue(e.target.value)}
+            placeholder="What you value most..."
+            className="h-10 text-sm"
+          />
         </div>
       </div>
 

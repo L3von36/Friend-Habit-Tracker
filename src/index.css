@@ -95,6 +95,25 @@
     --accent: 180 100% 50%;
     --border: 320 100% 30%;
   }
+
+  /* Loom Theme (Linen & Indigo) */
+  [data-theme='loom'] {
+    --background: 30 20% 98%; /* Soft Linen Cream */
+    --foreground: 224 47% 12%; /* Deep Indigo Ink */
+    --primary: 224 47% 26%; /* Muted Indigo */
+    --primary-foreground: 30 20% 98%;
+    --card: 30 20% 100%;
+    --card-foreground: 224 47% 12%;
+    --popover: 30 20% 100%;
+    --popover-foreground: 224 47% 12%;
+    --muted: 224 10% 90%;
+    --muted-foreground: 224 10% 40%;
+    --accent: 30 20% 94%;
+    --accent-foreground: 224 47% 26%;
+    --border: 224 10% 88%;
+    --input: 224 10% 88%;
+    --ring: 224 47% 26%;
+  }
 }
 
 @layer base {

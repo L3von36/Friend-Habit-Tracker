@@ -17,6 +17,8 @@ export interface Friend {
   giftIdeas: string[];
   interests: string[];
   // Introduction tracking
+  metVia?: string; // Where or how you met
+  coreValue?: string; // What you value most about them
   introducedBy?: string; // friendId
   introducedDate?: string;
   connectedFriends?: string[]; // IDs of friends they are connected to

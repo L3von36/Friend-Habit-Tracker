@@ -1,6 +1,6 @@
 {
-    "name": "Friend Habit Tracker",
-    "short_name": "FriendTracker",
+    "name": "Loom",
+    "short_name": "Loom",
     "description": "Track interactions, habits, and build stronger friendships.",
     "theme_color": "#8b5cf6",
     "background_color": "#ffffff",
@@ -8,7 +8,7 @@
     "scope": "/",
     "start_url": "/",
     "orientation": "portrait",
-        "icons": [
+    "icons": [
         {
             "src": "/icons/icon-192x192.svg",
             "sizes": "192x192",

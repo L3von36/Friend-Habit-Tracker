@@ -25,6 +25,7 @@ import {
   Calendar,
   Users2,
 } from "lucide-react";
+import { LoomLogo } from "@/components/Common/LoomLogo";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 
 type MobileMenuProps = {
@@ -64,11 +65,11 @@ export function MobileMenu({
         <SheetHeader className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg">
-              <Users className="w-6 h-6 text-white" />
+              <LoomLogo className="w-6 h-6 text-white" />
             </div>
             <div>
               <SheetTitle className="text-xl font-black tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-                FriendTracker
+                Loom
               </SheetTitle>
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
                 Menu

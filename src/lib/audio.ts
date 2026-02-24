@@ -99,6 +99,44 @@ class AudioService {
         osc.stop(start + 0.1);
     }
 
+    /**
+     * Play a short, high-pitched data "blip"
+     */
+    public playDataStream() {
+        if (this.isMuted) return;
+        const ctx = this.getContext();
+        if (ctx.state === 'suspended') ctx.resume();
+
+        const start = ctx.currentTime;
+        const { osc, gain } = this.createOscillator(1200 + Math.random() * 400, 'square', start);
+
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.05, start + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.05);
+
+        osc.start(start);
+        osc.stop(start + 0.05);
+    }
+
+    /**
+     * Play a cinematic "system chirp" for confirmations
+     */
+    public playSystemChirp() {
+        if (this.isMuted) return;
+        const ctx = this.getContext();
+        if (ctx.state === 'suspended') ctx.resume();
+
+        const start = ctx.currentTime;
+        [1500, 1800, 2100].forEach((freq, i) => {
+            const { osc, gain } = this.createOscillator(freq, 'sine', start + (i * 0.03));
+            gain.gain.setValueAtTime(0, start + (i * 0.03));
+            gain.gain.linearRampToValueAtTime(0.1, start + (i * 0.03) + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.01, start + (i * 0.03) + 0.08);
+            osc.start(start + (i * 0.03));
+            osc.stop(start + (i * 0.03) + 0.08);
+        });
+    }
+
     public toggleMute() {
         this.isMuted = !this.isMuted;
         return this.isMuted;

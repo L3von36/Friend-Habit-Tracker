@@ -110,7 +110,7 @@ import {
 import { generateId } from "@/lib/id";
 import { AppLock } from "@/components/Security/AppLock";
 
-import { FriendListRow } from "@/components/FriendListRow";
+import { LoomLogo } from "@/components/Common/LoomLogo";
 import { ThemeToggle } from "@/components/Header/ThemeToggle";
 import { UserProfile as HeaderUserProfile } from "@/components/Header/UserProfile";
 import { MobileMenu } from "@/components/Header/MobileMenu";
@@ -236,12 +236,12 @@ function App() {
           }
         });
       };
-      window.addEventListener("friend-tracker-sync", handleManualSyncTrigger);
+      window.addEventListener("loom-sync", handleManualSyncTrigger);
 
       return () => {
         navigator.serviceWorker.removeEventListener("message", handleSWMessage);
         window.removeEventListener(
-          "friend-tracker-sync",
+          "loom-sync",
           handleManualSyncTrigger,
         );
       };
@@ -520,6 +520,10 @@ function App() {
         createdAt: new Date().toISOString(),
         giftIdeas: [],
         interests: [],
+        xp: 0,
+        level: 1,
+        streak: 0,
+        averageResponseTime: 0,
       };
       audioService.playSuccess();
       setFriends((prev) => [...prev, newFriend]);
@@ -1123,19 +1127,14 @@ function App() {
               <div className="flex items-center gap-1 sm:gap-4 group cursor-default shrink-0">
                 <div className="relative shrink-0">
                   <div className="w-7 h-7 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 transform group-hover:rotate-6 transition-transform">
-                    <Users className="w-3.5 h-3.5 sm:w-6 sm:h-6 text-white" />
+                    <LoomLogo className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 sm:w-5 sm:h-5 bg-white dark:bg-slate-900 rounded-[5px] sm:rounded-lg flex items-center justify-center shadow-md">
                     <Sparkles className="w-2 h-2 sm:w-3 sm:h-3 text-amber-500 animate-pulse" />
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent truncate pr-1">
-                    Friend
-                    <span className="text-slate-800 dark:text-white">
-                      Tracker
-                    </span>
-                  </h1>
+                    Loom
                   <div className="hidden md:flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">

@@ -46,8 +46,8 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'icons/icon-192x192.svg', 'icons/icon-512x512.svg'],
       manifest: {
-        name: 'Friend Habit Tracker',
-        short_name: 'FriendTracker',
+        name: 'Loom',
+        short_name: 'Loom',
         description: 'Track interactions, habits, and build stronger friendships.',
         theme_color: '#8b5cf6',
         icons: [
