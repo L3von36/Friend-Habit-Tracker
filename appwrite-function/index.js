@@ -1,12 +1,13 @@
 import Groq from 'groq-sdk';
 
 export default async ({ req, res, log, error }) => {
- 
+  log(`Request method: ${req.method}`);
+
   const corsHeaders = {
-    'Access-Control-Allow-Origin': req.headers['origin'] || '*', 
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Appwrite-Project, X-Appwrite-Key',
-    'Access-Control-Allow-Credentials': 'true'
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'access-control-allow-headers': 'content-type, x-appwrite-project, x-appwrite-key, x-appwrite-session, x-sdk-version, x-sdk-name',
+    'access-control-max-age': '86400'
   };
 
   if (req.method === 'OPTIONS') {
@@ -31,6 +32,7 @@ export default async ({ req, res, log, error }) => {
   }
 
   if (!messages || !Array.isArray(messages)) {
+    log('Invalid request body: ' + JSON.stringify(req.body));
     return res.json({ error: "Invalid request: Missing 'messages' array." }, 400, corsHeaders);
   }
 
@@ -48,7 +50,6 @@ export default async ({ req, res, log, error }) => {
 
     log('Groq API call successful');
 
-    // Return the full completion to be flexible, but also a top-level 'message' for convenience
     return res.json({
       message: chatCompletion.choices[0]?.message?.content || '',
       choices: chatCompletion.choices,
@@ -56,7 +57,7 @@ export default async ({ req, res, log, error }) => {
     }, 200, corsHeaders);
 
   } catch (e) {
-    error('Groq API call failed:', e);
+    error('Groq API call failed: ' + e.message);
     return res.json({
       error: 'Failed to communicate with the AI service.',
       details: e.message
