@@ -15,7 +15,7 @@ Loom is a modern, AI-powered personal CRM and relationship management web applic
 Loom features a completely decoupled, flexible **Hybrid AI System** that elevates your relationship management experience:
 
 - **🔐 Privacy-First Local AI**: By default, the application uses an entirely browser-based, privacy-preserving semantic search model (Xenova Transformers / `all-MiniLM-L6-v2`) to provide offline intelligence.
-- **⚡ Groq Llama 3.1 Integration**: Unlock cloud intelligence! By providing a Groq API Key in your Security Settings, you completely bypass the local models in favor of the blazing-fast `llama-3.1-8b-instant`.
+- **⚡ Groq Llama 3.1 Integration**: Unlock cloud intelligence! Powered by Appwrite Functions, you can leverage the blazing-fast `llama-3.1-8b-instant` for deep insights and semantic search.
 - **💡 Deep Insights**: Analyzes all logged interactions to generate highly actionable psychological advice (e.g., "Reconnect with Sarah," "Maintain Momentum").
 - **✉️ Smart Drafts & Conversation Starters**: Dynamically synthesizes personalized icebreakers and exact phrasing suggestions tailored to your friend's personality archetype.
 - **💬 Conversational AI Assistant**: An interactive chatbot wrapper around your data! Ask questions like, *"When did I last see Mark?"* or *"Who do I have the highest streak with?"* and get real-time answers.
@@ -43,7 +43,7 @@ Loom features a completely decoupled, flexible **Hybrid AI System** that elevate
 
 4. Start the development server:
    ```bash
-   npm run dev
+   npm start
    ```
 5. Open your browser and visit `http://localhost:3000`.
 

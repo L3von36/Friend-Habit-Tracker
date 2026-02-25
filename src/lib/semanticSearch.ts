@@ -36,17 +36,39 @@ class SemanticSearchService {
     try {
       const messages: GroqMessage[] = [{ role: 'system', content: prompt }];
       
-      // We expect the Groq API to return an array of strings (friend names)
-      const friendNames = await callGroq(messages, { response_format: { type: 'json_object' } });
+      const response = await callGroq(messages, { response_format: { type: 'json_object' } });
 
-      if (!Array.isArray(friendNames)) {
-        console.warn('[semanticSearch] Groq did not return a valid array of names.', friendNames);
+      if (!response) {
+        console.warn('[semanticSearch] Groq did not return a response.');
+        return [];
+      }
+
+      let friendNames: string[] = [];
+      try {
+        const cleanedResponse = response.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+        const parsed = JSON.parse(cleanedResponse);
+
+        if (Array.isArray(parsed)) {
+          friendNames = parsed;
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          // Handle case where model wraps it in an object like { "matches": [...] }
+          const potentialArray = Object.values(parsed).find(val => Array.isArray(val));
+          if (Array.isArray(potentialArray)) {
+            friendNames = potentialArray as string[];
+          }
+        }
+      } catch (e) {
+        console.error('[semanticSearch] Failed to parse Groq response:', e, response);
+        return [];
+      }
+
+      if (friendNames.length === 0) {
         return [];
       }
 
       // Map the returned names back to the original Friend objects
       const friendMap = new Map(friends.map(friend => [friend.name, friend]));
-      const matchedFriends = (friendNames as string[])
+      const matchedFriends = friendNames
         .map(name => friendMap.get(name))
         .filter((friend): friend is Friend => friend !== undefined);
       
