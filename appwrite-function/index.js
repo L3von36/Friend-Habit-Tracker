@@ -35,6 +35,7 @@ export default async ({ req, res, log, error }) => {
   }
 
   try {
+    log(`Calling Groq API with model: ${req.body.model || 'llama3-8b-8192'}`);
     const groq = new Groq({ apiKey });
     
     const chatCompletion = await groq.chat.completions.create({
@@ -44,6 +45,8 @@ export default async ({ req, res, log, error }) => {
       max_tokens: req.body.max_tokens,
       response_format: req.body.response_format,
     });
+
+    log('Groq API call successful');
 
     // Return the full completion to be flexible, but also a top-level 'message' for convenience
     return res.json({

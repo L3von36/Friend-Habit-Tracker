@@ -1,6 +1,4 @@
 
-import type { Friend, Event } from '@/types';
-
 export interface GroqMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -19,7 +17,7 @@ export interface DeepInsight {
     tags: string[];
 }
 
-const APPWRITE_PROXY_URL = "https://699e12e5000db716c63a.fra.appwrite.run/";
+const APPWRITE_PROXY_URL = "https://699e12e4001d8b2c0ac6.fra.appwrite.run/";
 
 async function callGroq(
   messages: GroqMessage[],
@@ -49,6 +47,10 @@ async function callGroq(
     const content = result.message || result?.choices?.[0]?.message?.content;
     
     if (typeof content === 'string') {
+        // If the content itself looks like a debug message or a common error, log it
+        if (content.includes("CORS") || content.length < 5) {
+            console.warn("Received suspicious content from Groq proxy:", content);
+        }
         return content;
     }
     
@@ -87,6 +89,13 @@ export async function generateGroqDeepInsight(
         try {
             // Clean up possible markdown formatting if the model ignored instructions
             const cleanedJson = insightJsonString.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+
+            // If the string doesn't look like JSON at all, it might be a direct message or an error
+            if (!cleanedJson.startsWith('{')) {
+                console.warn("[groq] Received non-JSON response for deep insight. Response:", cleanedJson);
+                return null;
+            }
+
             const insight = JSON.parse(cleanedJson);
             return insight as DeepInsight;
         } catch (error) {
