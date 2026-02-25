@@ -1,42 +1,43 @@
 import Groq from 'groq-sdk';
 
 export default async ({ req, res, log, error }) => {
-  log(`Request method: ${req.method}`);
+  const origin = req.headers['origin'] || '*';
 
   const corsHeaders = {
-    'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': 'content-type, x-appwrite-project, x-appwrite-key, x-appwrite-session, x-sdk-version, x-sdk-name',
-    'access-control-max-age': '86400'
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Appwrite-Project, X-Appwrite-Key, X-Appwrite-Session, X-SDK-Version, X-SDK-Name',
+    'Access-Control-Max-Age': '86400',
+    'Access-Control-Allow-Credentials': 'true'
   };
 
+  log(`Request method: ${req.method} from origin: ${origin}`);
+
   if (req.method === 'OPTIONS') {
-    return res.send('ok', 204, corsHeaders);
-  }
-
-  if (req.method !== 'POST') {
-    return res.send('Method Not Allowed', 405, corsHeaders);
-  }
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    error('GROQ_API_KEY is not set.');
-    return res.json({ error: 'Server configuration error.' }, 500, corsHeaders);
-  }
-
-  let messages = req.body.messages;
-
-  // Handle case where body IS the messages array
-  if (!messages && Array.isArray(req.body)) {
-    messages = req.body;
-  }
-
-  if (!messages || !Array.isArray(messages)) {
-    log('Invalid request body: ' + JSON.stringify(req.body));
-    return res.json({ error: "Invalid request: Missing 'messages' array." }, 400, corsHeaders);
+    return res.send('', 204, corsHeaders);
   }
 
   try {
+    if (req.method !== 'POST') {
+      return res.send('Method Not Allowed', 405, corsHeaders);
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      error('GROQ_API_KEY is not set.');
+      return res.json({ error: 'Server configuration error.' }, 500, corsHeaders);
+    }
+
+    let messages = req.body.messages;
+    if (!messages && Array.isArray(req.body)) {
+      messages = req.body;
+    }
+
+    if (!messages || !Array.isArray(messages)) {
+      log('Invalid request body: ' + JSON.stringify(req.body));
+      return res.json({ error: "Invalid request: Missing 'messages' array." }, 400, corsHeaders);
+    }
+
     log(`Calling Groq API with model: ${req.body.model || 'llama3-8b-8192'}`);
     const groq = new Groq({ apiKey });
     
@@ -57,9 +58,9 @@ export default async ({ req, res, log, error }) => {
     }, 200, corsHeaders);
 
   } catch (e) {
-    error('Groq API call failed: ' + e.message);
+    error('Function execution failed: ' + e.message);
     return res.json({
-      error: 'Failed to communicate with the AI service.',
+      error: 'Internal Server Error',
       details: e.message
     }, 500, corsHeaders);
   }
