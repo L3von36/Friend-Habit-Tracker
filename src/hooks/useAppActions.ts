@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { toast } from 'sonner';
 import { audioService } from '@/lib/audio';
 import { generateId } from '@/lib/id';
-import { calculateEventXP, checkStreak, updateFriendXP, generateQuests } from '@/lib/gamification';
+import { calculateEventXP, checkStreak, updateFriendXP } from '@/lib/gamification';
 import type { Friend, Event, RelationshipGoal, Memory, GratitudeEntry } from '@/types';
 import { mediaStorage } from '@/lib/mediaStorage';
 
