@@ -5,7 +5,7 @@
             "name": "grok-proxy",
             "runtime": "node-18.0",
             "provider": "",
-            "execute": [],
+            "execute": ["any"],
             "events": [],
             "schedule": "",
             "timeout": 15,

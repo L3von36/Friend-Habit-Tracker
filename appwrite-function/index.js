@@ -1,6 +1,6 @@
-import Groq from 'groq-sdk';
+const Groq = require('groq-sdk');
 
-export default async ({ req, res, log, error }) => {
+module.exports = async ({ req, res, log, error }) => {
   const origin = req.headers['origin'] || '*';
 
   const corsHeaders = {

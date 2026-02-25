@@ -1,7 +1,6 @@
 {
   "name": "grok-proxy-function",
   "version": "1.0.0",
-  "type": "module",
   "description": "Appwrite function to proxy requests to Groq API.",
   "main": "index.js",
   "scripts": {
