@@ -14,16 +14,16 @@ export interface GroqOptions {
 }
 
 export interface DeepInsight {
-    title: string;
-    summary: string;
-    suggestions: string[];
+    focus: string;
+    insight: string;
+    tags: string[];
 }
 
 const APPWRITE_PROXY_URL = "https://699e12e5000db716c63a.fra.appwrite.run/";
 
 async function callGroq(
   messages: GroqMessage[],
-  _options: GroqOptions = {}
+  options: GroqOptions = {}
 ): Promise<string | null> {
   try {
     const response = await fetch(APPWRITE_PROXY_URL, {
@@ -31,8 +31,10 @@ async function callGroq(
       headers: {
         "Content-Type": "application/json",
       },
-      // The Appwrite function expects the raw payload, not a named JSON key.
-      body: JSON.stringify(messages),
+      body: JSON.stringify({
+        messages,
+        ...options
+      }),
     });
 
     if (!response.ok) {
@@ -43,7 +45,8 @@ async function callGroq(
 
     const result = await response.json();
     
-    const content = result?.choices?.[0]?.message?.content;
+    // Support both the extracted message from proxy and the full choices array
+    const content = result.message || result?.choices?.[0]?.message?.content;
     
     if (typeof content === 'string') {
         return content;
@@ -66,7 +69,7 @@ export async function generateGroqDeepInsight(
         You are a relationship assistant AI. Analyze the following data about friends and their interactions (events).
         Generate a "deep insight" about the user's social life.
         The response MUST be ONLY a valid JSON object, without any markdown formatting, comments, or other text.
-        The JSON object must have the following structure: { "title": "Insight Title", "summary": "A 2-3 sentence summary.", "suggestions": ["suggestion 1", "suggestion 2"] }.
+        The JSON object must have the following structure: { "focus": "Relationship Focus Area", "insight": "A 2-3 sentence deep psychological insight.", "tags": ["tag1", "tag2"] }.
         
         DATA:
         - Friends: ${JSON.stringify(friends)}
@@ -75,11 +78,16 @@ export async function generateGroqDeepInsight(
 
     const messages: GroqMessage[] = [{ role: 'system', content: prompt }];
     
-    const insightJsonString = await callGroq(messages, { temperature: 0.2 });
+    const insightJsonString = await callGroq(messages, {
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
 
-    if (typeof insightJsonString === 'string' && insightJsonString.trim().startsWith('{')) {
+    if (typeof insightJsonString === 'string') {
         try {
-            const insight = JSON.parse(insightJsonString);
+            // Clean up possible markdown formatting if the model ignored instructions
+            const cleanedJson = insightJsonString.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+            const insight = JSON.parse(cleanedJson);
             return insight as DeepInsight;
         } catch (error) {
             console.error("Failed to parse Groq deep insight JSON:", error, "\nReceived string:", insightJsonString);
@@ -87,7 +95,7 @@ export async function generateGroqDeepInsight(
         }
     }
     
-    console.warn("[groq] Did not receive a valid JSON string for deep insight. Received:", insightJsonString);
+    console.warn("[groq] Did not receive a valid string for deep insight. Received:", insightJsonString);
     return null;
 }
 
@@ -115,3 +123,5 @@ export async function generateGroqChatCompletion(
     const responseText = await callGroq(messages);
     return responseText;
 }
+
+export { callGroq };
