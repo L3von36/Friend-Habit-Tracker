@@ -1,12 +1,12 @@
 const Groq = require('groq-sdk');
 
 module.exports = async ({ req, res, log, error }) => {
-  // CORS headers must be present in every response path
   const corsHeaders = {
-    'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': 'content-type, x-appwrite-project, x-appwrite-key, x-appwrite-session, x-sdk-version, x-sdk-name, authorization',
-    'access-control-max-age': '86400'
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Appwrite-Project, X-Appwrite-Key, X-Appwrite-Session, X-SDK-Version, X-SDK-Name, Authorization',
+    'Access-Control-Max-Age': '86400',
+    'Access-Control-Allow-Credentials': 'true'
   };
 
   log(`Handling ${req.method} request`);
@@ -26,13 +26,12 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ error: 'Server configuration error.' }, 500, corsHeaders);
     }
 
-    // Robust body parsing
     let body = req.body;
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
       } catch (e) {
-        log('Note: Request body is a string but not valid JSON');
+        log('Request body is a string but not valid JSON');
       }
     }
 
@@ -42,6 +41,7 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     if (!messages || !Array.isArray(messages)) {
+      log('Invalid request body: missing messages array');
       return res.json({ error: "Invalid request: Missing 'messages' array." }, 400, corsHeaders);
     }
 
@@ -54,6 +54,8 @@ module.exports = async ({ req, res, log, error }) => {
       max_tokens: body?.max_tokens,
       response_format: body?.response_format,
     });
+
+    log('Groq API call successful');
 
     return res.json({
       message: chatCompletion.choices[0]?.message?.content || '',
