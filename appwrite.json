@@ -1,0 +1,26 @@
+{
+    "functions": [
+        {
+            "$id": "grok-proxy",
+            "name": "grok-proxy",
+            "runtime": "node-18.0",
+            "provider": "",
+            "execute": [],
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "index.js",
+            "commands": "npm install",
+            "ignore": [
+                "node_modules",
+                ".npm"
+            ],
+            "path": "appwrite-function",
+            "vars": {
+                "GROQ_API_KEY": ""
+            }
+        }
+    ]
+}

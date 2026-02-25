@@ -7,7 +7,7 @@ import { CATEGORIES } from '@/types';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 import { audioService } from '@/lib/audio';
-import { callGroq, getGroqApiKey } from '@/lib/groq';
+import { callGroq } from '@/lib/groq';
 
 // Friendship Wrapped Experience
 interface WrappedProps {
@@ -94,7 +94,7 @@ export function RelationshipWrapped({ friends, events, isOpen, onClose, userName
   // Generate AI Summary on last slide
   useEffect(() => {
     const generateSummary = async () => {
-      if (currentSlide === 5 && !aiSummary && stats && getGroqApiKey() && !isGeneratingAi) {
+      if (currentSlide === 5 && !aiSummary && stats && !isGeneratingAi) {
         setIsGeneratingAi(true);
         try {
           const prompt = `You are an AI generating a "Spotify Wrapped" style end-of-year summary for a user's friendships.

@@ -1,11 +1,9 @@
 import type { Friend, Event } from '@/types';
 import { CONVERSATION_STARTERS } from '@/types';
-import { callGroq, getGroqApiKey } from './groq';
+import { callGroq } from './groq';
 
 // Generate personalized conversation starters
 export async function generateConversationStarters(friend: Friend, events: Event[]): Promise<string[]> {
-  // 1. Check for Groq API
-  if (getGroqApiKey()) {
     try {
       const systemPrompt = `You are an expert relationship coach.
 Your task is to provide exactly 3 great conversation starters for the user to use with their friend.
@@ -46,9 +44,8 @@ Provide exactly 3 highly contextual and natural conversation starters in JSON ar
     } catch (e) {
       console.warn('Groq Conversational api failed, falling back locally.', e);
     }
-  }
 
-  // 2. Fallback to Algorithmic Approach
+  // Fallback to Algorithmic Approach
   const starters: string[] = [];
   const recentEvents = events.slice(-5);
 

@@ -1,295 +1,255 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Brain, Send, User, Bot, Sparkles, History, Search, Mic, MicOff } from 'lucide-react';
-import type { Friend, Event, Memory } from '@/types';
-import { semanticSearch } from '@/lib/semanticSearch';
-import { callGroq, getGroqApiKey } from '@/lib/groq';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { Bot, User, Send, Loader, Sparkles, Mic } from 'lucide-react';
+import { useStore } from '@/store/useStore';
+import { callGroq } from '@/lib/groq';
+import { LoomLogo } from '@/components/Common/LoomLogo';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
 }
 
-interface ChatAssistantProps {
-  friends: Friend[];
-  events: Event[];
-  memories: Memory[];
+const systemPrompt = `## ROLE
+You are "Loom," a soulful and perceptive relationship companion. Your voice is warm, grounded, and observant.
+
+## HOW TO SPEAK
+- NEVER use JSON, brackets {}, or technical labels (like "Observation:").
+- Write in 2-3 flowing, natural paragraphs. 
+- Use line breaks between thoughts so it’s easy to read on a phone.
+- Speak directly to the user as "you" and refer to their friends by name.
+
+## ANALYSIS STRATEGY
+- Bridge the past to the present: Connect old memories to current events.
+- Notice the "Vulnerability Hangover": If a friend is vulnerable (love) and then reactive (shouting), explain it as fear, not malice.
+- Watch the energy: If a relationship is "taking" energy, suggest a gentle way to reset.
+
+## THE CLOSING
+End your message with one simple, low-pressure suggestion for the user to try today.`;
+
+
+// Function to format the JSON responses into human-readable text
+const formatAIResponse = (parsedResponse: any): string => {
+  if (parsedResponse.friendship && parsedResponse.insights) {
+    let friendDetails = "Here's a bit about your friends:\n\n";
+    for (const friendName in parsedResponse.friendship) {
+      const friend = parsedResponse.friendship[friendName];
+      friendDetails += `**${friendName.charAt(0).toUpperCase() + friendName.slice(1)}:** ${friend.description}\n`;
+      const positiveTraits = friend.positive_traits || friend.positiveTraits;
+      if (positiveTraits && Array.isArray(positiveTraits)) {
+         friendDetails += `- Positive traits: ${positiveTraits.join(', ')}\n`;
+      }
+      const negativeTraits = friend.negative_traits || friend.negativeTraits;
+      if (negativeTraits && Array.isArray(negativeTraits)) {
+         friendDetails += `- Negative traits: ${negativeTraits.join(', ')}\n`;
+      }
+      friendDetails += `\n`;
+    }
+
+    friendDetails += "Deeper Insights:\n\n";
+    for (const friendName in parsedResponse.insights) {
+      const insight = parsedResponse.insights[friendName];
+      friendDetails += `**Regarding ${friendName.charAt(0).toUpperCase() + friendName.slice(1)}:**\n`;
+      if(insight.note) friendDetails += `- Note: ${insight.note}\n`;
+      if(insight.suggestion) friendDetails += `- Suggestion: ${insight.suggestion}\n\n`;
+    }
+    return friendDetails.trim();
+  } else if (parsedResponse.insight) {
+    let insightDetails = `${parsedResponse.insight}\n\n`;
+    if (parsedResponse.suggestion) {
+      if (typeof parsedResponse.suggestion === 'object' && parsedResponse.suggestion.prompt) {
+        insightDetails += `Here's a reflective question for you: "${parsedResponse.suggestion.prompt}"\n\n`;
+      } else if (typeof parsedResponse.suggestion === 'string') {
+        insightDetails += `Suggestion: ${parsedResponse.suggestion}\n\n`;
+      }
+    }
+    if (parsedResponse.empathy) {
+      insightDetails += parsedResponse.empathy;
+    }
+    return insightDetails.trim();
+  } else if (parsedResponse.message) {
+    return parsedResponse.message;
+  } else if (parsedResponse.greeting) {
+    let fullResponse = parsedResponse.greeting;
+    if (parsedResponse.followUp && Array.isArray(parsedResponse.followUp)) {
+        const followUpText = parsedResponse.followUp.map((item: { text: any; }) => item.text).join(' ');
+        if (followUpText) {
+            fullResponse += ` ${followUpText}`;
+        }
+    }
+    return fullResponse;
+  } else if (parsedResponse.response) {
+    return parsedResponse.response;
+  }
+  return ""; // Return empty string if no specific format is matched
 }
 
-export function ChatAssistant({ friends, events, memories }: ChatAssistantProps) {
+export function ChatAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm your Friendship AI. Ask me anything about your history, like 'When did I last see Mark?' or 'What memories do I have with Sarah?'",
-      timestamp: new Date()
+      content: "Hi! I'm your relationship co-pilot. How can I help you strengthen your connections today?"
     }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(semanticSearch.status);
-  const [aiProgress, setAiProgress] = useState(semanticSearch.initializationProgress);
-  const [aiMessage, setAiMessage] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const handleSendRef = useRef<() => void>(() => {});
+  const { friends, events, memories } = useStore();
+  const handleSendRef = useRef<() => void>();
 
-  const { isListening, toggleListening } = useSpeechRecognition({
-    onResult: (transcript) => setInput(prev => (prev ? `${prev} ${transcript}` : transcript))
-  });
-
-  useEffect(() => {
-    const unsubscribe = semanticSearch.addProgressListener((payload: any) => {
-      if (payload.status === 'init' || payload.status === 'loading') {
-        setAiStatus('loading');
-        setAiMessage(`Loading AI model (${payload.file})...`);
-      } else if (payload.status === 'progress') {
-        setAiStatus('loading');
-        setAiProgress(payload.progress);
-        setAiMessage(`Downloading: ${payload.progress.toFixed(1)}%`);
-      } else if (payload.status === 'done' || payload.status === 'ready') {
-        setAiStatus('ready');
-        setAiProgress(100);
-        setAiMessage('AI is ready');
-      } else if (payload.status === 'error') {
-        setAiStatus('error');
-        setAiMessage('Failed to load AI model');
+  const processQuery = useCallback(async (q: string): Promise<any> => {
+    try {
+      const contextData = {
+        friends: friends.slice(0, 5),
+        events: events.slice(0, 10),
+        memories: memories.slice(0, 10)
+      };
+      
+      const userPrompt = `Here is my current friendship data: ${JSON.stringify(contextData, null, 2)}. My question is: ${q}`;
+      
+      const response = await callGroq([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+      
+      if (response) {
+        return response;
+      } else {
+        return "I'm sorry, I couldn't get a response from the AI. Please check your connection and API configuration.";
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    } catch (error: any) {
+       console.error('Groq Chat Assistant failed', error);
+       return "I'm sorry, I'm having trouble connecting to the cloud intelligence right now.";
     }
-  }, [messages]);
-
-  const processQuery = useCallback(async (query: string) => {
-    const q = query.trim();
-    const apiKey = getGroqApiKey();
-
-    if (apiKey) {
-      try {
-        const systemPrompt = `You are a helpful, empathetic "Friendship AI" assistant for a personal relationship tracker app.
-You have access to the user's logged friends, events (interactions), and memories.
-Answer the user's questions about their social life concisely, warmly, and accurately using ONLY the provided data.
-If they ask a general question, be helpful. If you don't know the answer based on the data, say so.`;
-
-        // Minify data to fit context and remove overly verbose/unnecessary fields if any, though Llama 3 handles 8k fine
-        const contextData = {
-          friends: friends.map(f => ({ id: f.id, name: f.name, level: f.level, streak: f.streak, relationship: f.relationship, birthday: f.birthday })),
-          events: events.map(e => ({ friendId: e.friendId, title: e.title, date: e.date, category: e.category, sentiment: e.sentiment })),
-          memories: memories.map(m => ({ friendId: m.friendId, description: m.description, date: m.date }))
-        };
-
-        const userPrompt = `System Data Context:
-${JSON.stringify(contextData, null, 2)}
-
-User Question: ${q}`;
-
-        const response = await callGroq([
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ], {
-           model: 'llama-3.1-8b-instant',
-           temperature: 0.7
-        });
-        
-        if (response) return response;
-      } catch (error: any) {
-         console.error('Groq Chat Assistant failed', error);
-         return "I'm sorry, I'm having trouble connecting to the cloud intelligence right now.";
-      }
-    }
-
-    return "Please configure your Groq API key in the Security Settings to use the enhanced AI chat assistant.";
   }, [friends, events, memories]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!input.trim()) return;
 
-    const userMessage: Message = {
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    };
-
+    const userMessage: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
 
-    setTimeout(async () => {
-      const response = await processQuery(userMessage.content);
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setIsTyping(false);
-    }, 100);
+    const response = await processQuery(userMessage.content);
+    let displayContent: string;
+
+    try {
+      let parsedResponse = response;
+      // Attempt to parse the response if it's a string
+      if (typeof response === 'string') {
+        try {
+          parsedResponse = JSON.parse(response);
+        } catch {
+          // It's not a JSON string, so we'll treat it as plain text.
+          // parsedResponse is already the response string in this case.
+        }
+      }
+      
+      if (typeof parsedResponse === 'object' && parsedResponse !== null) {
+        // The response is a JSON object, format it for display.
+        const formatted = formatAIResponse(parsedResponse);
+        if (formatted) {
+          displayContent = formatted;
+        } else {
+          // If the object format is not recognized by our formatter, stringify it.
+          // This prevents crashes and shows the raw data for debugging.
+          displayContent = JSON.stringify(parsedResponse, null, 2);
+        }
+      } else {
+        // The response is not an object (e.g., string, number), so convert it to a string.
+        displayContent = String(parsedResponse);
+      }
+
+    } catch (error) {
+        // A catch-all for any unexpected errors during response processing.
+        displayContent = "Sorry, there was an error processing the response.";
+        console.error("Response processing error:", error);
+    }
+
+    const assistantMessage: Message = {
+      role: 'assistant',
+      content: displayContent,
+    };
+    setMessages(prev => [...prev, assistantMessage]);
+    setIsTyping(false);
   }, [input, processQuery]);
 
-  // expose handleSend to event listener via ref
   useEffect(() => {
     handleSendRef.current = handleSend;
   }, [handleSend]);
-
-  // Listen for external requests to start a relationship session
-  useEffect(() => {
-    const handler = (event: CustomEvent<any>) => {
-      try {
-        const prompt = event?.detail?.prompt || '';
-        if (!prompt) return;
-        setInput(prompt);
-        // small delay to allow input to update before sending
-        setTimeout(() => {
-          handleSendRef.current && handleSendRef.current();
-          try { inputRef.current?.focus(); } catch { /* ignored */ }
-          if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-          }
-        }, 200);
-      } catch (error: any) {
-        console.error('Error handling start-relationship-session event', error);
-      }
-    };
-
-    window.addEventListener('start-relationship-session', handler as EventListener);
-    return () => window.removeEventListener('start-relationship-session', handler as EventListener);
-  }, []);
-
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendRef.current?.();
+    }
+  };
+  
   return (
-    <Card className="flex flex-col h-[500px] border-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-2xl overflow-hidden">
-      <CardHeader className="border-b border-slate-100 dark:border-slate-800 bg-white/30 dark:bg-slate-900/30 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
+    <div className="flex flex-col h-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shrink-0">
+                <LoomLogo className="w-6 h-6 text-white"/>
             </div>
-            <div>
-              <CardTitle className="text-sm font-bold">Friendship Assistant</CardTitle>
-              <div className="flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'ready' ? 'bg-emerald-500' : aiStatus === 'error' ? 'bg-red-500' : 'bg-amber-500 animate-pulse'}`} />
-                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
-                  {aiStatus === 'ready' ? 'AI Active' : aiStatus === 'loading' ? 'Initializing...' : aiStatus === 'error' ? 'AI Error' : 'AI Offline'}
-                </span>
-              </div>
-            </div>
-          </div>
-          <Sparkles className={`w-4 h-4 text-violet-500 ${aiStatus === 'loading' ? 'animate-spin' : 'animate-pulse'}`} />
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Friendship Assistant</h2>
         </div>
-        
-        {aiStatus === 'loading' && (
-          <div className="mt-3 space-y-1.5">
-            <div className="flex justify-between text-[10px] text-slate-500 font-medium">
-              <span className="truncate max-w-[180px]">{aiMessage}</span>
-              <span>{aiProgress.toFixed(0)}%</span>
-            </div>
-            <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-violet-500 transition-all duration-300 ease-out"
-                style={{ width: `${aiProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </CardHeader>
-
-      <CardContent className="flex-1 overflow-hidden p-0 flex flex-col min-h-0">
-        <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex gap-2 max-w-[85%] ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center ${m.role === 'user' ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                    {m.role === 'user' ? <User className="w-3.5 h-3.5 text-violet-600" /> : <Bot className="w-3.5 h-3.5 text-slate-600" />}
-                  </div>
-                  <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
-                    m.role === 'user' 
-                      ? 'bg-violet-600 text-white rounded-tr-none' 
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm border border-slate-100 dark:border-slate-700 rounded-tl-none'
-                  }`}>
-                    {m.content}
-                    <div className={`text-[9px] mt-1 opacity-50 ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
-                      {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
+        <Button variant="ghost" size="icon">
+            <Sparkles className="w-5 h-5 text-amber-500" />
+        </Button>
+      </div>
+      <ScrollArea className="flex-grow p-4 min-h-0">
+        <div className="space-y-6">
+          {messages.map((msg, index) => (
+            <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0"><Bot className="w-4 h-4 text-slate-500" /></div>}
+              <div className={`p-3 rounded-lg max-w-[85%] sm:max-w-[80%] ${msg.role === 'assistant' ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200' : 'bg-violet-500 text-white'}`}>
+                 <div className="text-sm whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br />') }} />
               </div>
-            ))}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]" />
-                </div>
+              {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0"><User className="w-4 h-4 text-slate-500" /></div>}
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0"><Bot className="w-4 h-4 text-slate-500" /></div>
+              <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800">
+                <Loader className="w-5 h-5 animate-spin text-slate-400" />
               </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white/30 dark:bg-slate-900/30">
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-            className="flex gap-2"
-          >
-            <div className="relative flex-1">
-              <Input 
-                placeholder="Ask about Sarah, streaks, recent events..."
-                ref={inputRef}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="relative">
+            <Textarea
+                placeholder="Ask about your relationships..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="w-full bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus-visible:ring-violet-500 h-10 text-sm pr-10"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-              />
-              <button
-                type="button"
-                onClick={toggleListening}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${
-                  isListening 
-                    ? 'bg-red-500 text-white animate-pulse' 
-                    : 'text-slate-400 hover:text-violet-500'
-                }`}
-                title={isListening ? 'Stop listening' : 'Voice Search'}
-              >
-                {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              </button>
+                onKeyDown={handleKeyDown}
+                className="pr-24"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="text-slate-500">
+                    <Mic className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="submit"
+                    size="icon"
+                    className="w-9 h-9 bg-violet-500 text-white hover:bg-violet-600"
+                    onClick={handleSend}
+                    disabled={isTyping || !input.trim()}
+                >
+                    <Send className="w-4 h-4" />
+                </Button>
             </div>
-            <Button 
-              type="submit"
-              size="icon"
-              className="bg-violet-600 hover:bg-violet-700 text-white shrink-0 h-10 w-10"
-              disabled={!input.trim()}
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
-          <div className="flex items-center gap-4 mt-3 overflow-x-auto pb-1 no-scrollbar">
-            {[
-              { icon: <History className="w-3 h-3" />, text: "Last seen Mark?" },
-              { icon: <Sparkles className="w-3 h-3" />, text: "Any Sarah memories?" },
-              { icon: <Search className="w-3 h-3" />, text: "Check streaks" }
-            ].map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setInput(s.text)}
-                className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-slate-500 hover:text-violet-600 transition-colors bg-white/50 dark:bg-slate-800/50 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700"
-              >
-                {s.icon}
-                {s.text}
-              </button>
-            ))}
-          </div>
         </div>
-      </CardContent>
-    </Card>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
+            Friendship Assistant can make mistakes. Consider checking important information.
+        </p>
+      </div>
+    </div>
   );
 }

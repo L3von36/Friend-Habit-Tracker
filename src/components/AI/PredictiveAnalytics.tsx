@@ -180,7 +180,7 @@ export function PredictiveAnalytics({ friends, events, /* memories */ }: Predict
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-.cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {isGenerating && predictions.length === 0 ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="p-6 animate-pulse bg-slate-100/50 h-64 border-0" />

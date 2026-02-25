@@ -1,3 +1,4 @@
+
 import {
   useState,
   useMemo,
@@ -321,44 +322,6 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Initialize Semantic Search
-  useEffect(() => {
-    // If a local model path is provided via Vite env, prefer that (e.g. VITE_LOCAL_MODEL_PATH=/models/all-MiniLM-L6-v2)
-    try {
-      const localPath = import.meta.env.VITE_LOCAL_MODEL_PATH as
-        | string
-        | undefined;
-      if (localPath) {
-        semanticSearch.setLocalModelPath(localPath);
-      }
-    } catch (e) {}
-    semanticSearch.initialize();
-  }, []);
-
-  // Index data when it changes
-  useEffect(() => {
-    const dataToIndex = [
-      ...friends.map((f) => ({
-        ...f,
-        type: "friend",
-        content: `Friend: ${f.name} - ${f.notes || ""}`,
-      })),
-      ...events.map((e) => ({
-        ...e,
-        type: "event",
-        content: `Event: ${e.title} - ${e.description}`,
-      })),
-      ...memories.map((m) => ({
-        ...m,
-        type: "memory",
-        content: `Memory: ${m.title} - ${m.description}`,
-      })),
-    ];
-    semanticSearch.indexData(dataToIndex);
-    // provide raw data to semanticSearch for worker RPC (MCP)
-    semanticSearch.updateData({ friends, events, memories });
-  }, [friends, events, memories]);
-
   const activeReminderCount = useMemo(
     () => reminders.filter((r) => !r.dismissed).length,
     [reminders],
@@ -388,7 +351,7 @@ function App() {
     const performSearch = async () => {
       if (isSemanticSearch && searchQuery.trim().length > 2) {
         setIsSearching(true);
-        const results = await semanticSearch.search(searchQuery);
+        const results = await semanticSearch.search(searchQuery, friends);
         setSearchResults(results);
         setIsSearching(false);
       }
@@ -397,14 +360,11 @@ function App() {
     // Debounce search
     const timeoutId = setTimeout(performSearch, 500);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, isSemanticSearch]);
+  }, [searchQuery, isSemanticSearch, friends]);
 
   const filteredFriends = useMemo(() => {
     if (isSemanticSearch && searchQuery.trim().length > 2) {
-      const friendIds = new Set(
-        searchResults.filter((r) => r.type === "friend").map((r) => r.id),
-      );
-      return friends.filter((f) => friendIds.has(f.id));
+      return searchResults;
     }
 
     return friends.filter(
@@ -480,31 +440,17 @@ function App() {
   const filteredEvents = useMemo(() => {
     let filtered = events;
 
-    if (isSemanticSearch && searchQuery.trim().length > 2) {
-      const eventIds = new Set(
-        searchResults.filter((r) => r.type === "event").map((r) => r.id),
-      );
-      filtered = filtered.filter((e) => eventIds.has(e.id));
-    } else {
-      if (filterCategory !== "all") {
-        filtered = filtered.filter((e) => e.category === filterCategory);
-      }
-      if (filterTag !== "all") {
-        filtered = filtered.filter((e) => e.tags.includes(filterTag));
-      }
+    if (filterCategory !== "all") {
+      filtered = filtered.filter((e) => e.category === filterCategory);
+    }
+    if (filterTag !== "all") {
+      filtered = filtered.filter((e) => e.tags.includes(filterTag));
     }
 
     return filtered.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
-  }, [
-    events,
-    filterCategory,
-    filterTag,
-    isSemanticSearch,
-    searchQuery,
-    searchResults,
-  ]);
+  }, [events, filterCategory, filterTag]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -1602,11 +1548,9 @@ const FriendListRow: React.FC<any> = () => null;
                   </Suspense>
                 </div>
                 <div>
-                  <ChatAssistant
-                    friends={friends}
-                    events={events}
-                    memories={memories}
-                  />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ChatAssistant />
+                  </Suspense>
                 </div>
               </div>
             </TabsContent>

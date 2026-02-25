@@ -4,76 +4,74 @@ import { requestDeepAnalysis, type DeepInsight } from '@/lib/intelligence';
 import { useStorage } from './useStorage';
 
 export function useDeepInsights() {
-    const { friends, events } = useStore();
-    const [insight, setInsight] = useStorage<DeepInsight | null>('deep-insight-data', null);
-    const [lastAnalysisDate, setLastAnalysisDate] = useStorage<string | null>('last-deep-analysis', null);
-    const [isLoading, setIsLoading] = useState(false);
+  const { friends, events } = useStore();
 
-    const performAnalysis = useCallback(async () => {
-        if (friends.length === 0) return;
+  const [insight, setInsight] =
+    useStorage<DeepInsight | null>('deep-insight-data', null);
 
-        setIsLoading(true);
-        try {
-            const newInsight = await requestDeepAnalysis(friends, events);
-            if (newInsight) {
-                setInsight(newInsight);
-                setLastAnalysisDate(new Date().toISOString());
+  const [lastAnalysisDate, setLastAnalysisDate] =
+    useStorage<string | null>('last-deep-analysis', null);
 
-                // Show a simple notification if in foreground and not already loaded
-                if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                    // Optional: Simple local notification logic
-                }
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    }, [friends, events, setInsight, setLastAnalysisDate]);
+  const [isLoading, setIsLoading] = useState(false);
 
-    // 1. Register Background Sync
-    useEffect(() => {
-        if ('serviceWorker' in navigator && 'SyncManager' in window) {
-            navigator.serviceWorker.ready.then((registration: any) => {
-                registration.sync.register('sync-intelligence').catch((err: any) => {
-                    console.warn('Background sync registration failed:', err);
-                });
-            });
-        }
-    }, []);
+  const performAnalysis = useCallback(async () => {
+    if (!friends || friends.length === 0) return;
 
-    // 2. Handle SW Messages
-    useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data.type === 'SYNC_INTELLIGENCE') {
-                performAnalysis();
-            }
-        };
+    setIsLoading(true);
+    try {
+      const newInsight = await requestDeepAnalysis(friends, events);
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.addEventListener('message', handleMessage);
-            return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-        }
-    }, [performAnalysis]);
+      // ✅ Accept Loom JSON directly (no invalid field checks)
+      if (newInsight) {
+        setInsight(newInsight);
+        setLastAnalysisDate(new Date().toISOString());
+      }
+    } catch (err) {
+      console.error('Deep insight error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [friends, events, setInsight, setLastAnalysisDate]);
 
-    // 3. Automatic weekly trigger (fallback)
-    useEffect(() => {
-        if (!lastAnalysisDate) {
-            performAnalysis();
-            return;
-        }
+  // Background sync support
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      navigator.serviceWorker.ready.then((registration: any) => {
+        registration.sync.register('sync-intelligence').catch(() => {});
+      });
+    }
+  }, []);
 
-        const lastDate = new Date(lastAnalysisDate);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays >= 7) {
-            performAnalysis();
-        }
-    }, [lastAnalysisDate, performAnalysis]);
-
-    return {
-        insight,
-        isLoading,
-        lastAnalysisDate,
-        refreshInsight: performAnalysis
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'SYNC_INTELLIGENCE') performAnalysis();
     };
+
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () =>
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+  }, [performAnalysis]);
+
+  // Auto-trigger (initial + stale)
+  useEffect(() => {
+    if (!insight && friends.length > 0 && !isLoading) {
+      performAnalysis();
+      return;
+    }
+
+    if (lastAnalysisDate) {
+      const diffDays =
+        (Date.now() - new Date(lastAnalysisDate).getTime()) /
+        (1000 * 60 * 60 * 24);
+
+      if (diffDays >= 7) performAnalysis();
+    }
+  }, [insight, friends.length, isLoading, lastAnalysisDate, performAnalysis]);
+
+  return {
+    insight,
+    isLoading,
+    lastAnalysisDate,
+    refreshInsight: performAnalysis,
+  };
 }

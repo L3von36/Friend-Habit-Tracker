@@ -1,22 +1,5 @@
-export const GROQ_API_URL = "/api/groq"; // We'll now point to our own API route.
 
-/**
- * We'll keep the client-side retrieval for display purposes in the UI,
- * but it will no longer be used for making API calls directly.
- */
-export function getGroqApiKey(): string | null {
-  if (typeof window !== "undefined") {
-    const localKey = localStorage.getItem("groq-api-key");
-    if (localKey && localKey.trim() !== "") {
-      return localKey.trim();
-    }
-  }
-  const envKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (envKey && envKey.trim() !== "") {
-    return envKey.trim();
-  }
-  return null;
-}
+import type { Friend, Event } from '@/types';
 
 export interface GroqMessage {
   role: "system" | "user" | "assistant";
@@ -30,37 +13,105 @@ export interface GroqOptions {
   response_format?: { type: "json_object" | "text" };
 }
 
-/**
- * We'll update this function to call our new server-side API route.
- * This way, the client never directly exposes the API key.
- */
-export async function callGroq(messages: GroqMessage[], options: GroqOptions = {}): Promise<string | null> {
+export interface DeepInsight {
+    title: string;
+    summary: string;
+    suggestions: string[];
+}
+
+const APPWRITE_PROXY_URL = "https://699e12e5000db716c63a.fra.appwrite.run/";
+
+async function callGroq(
+  messages: GroqMessage[],
+  _options: GroqOptions = {}
+): Promise<string | null> {
   try {
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(APPWRITE_PROXY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      // We'll send the messages and options in the body to our server.
-      body: JSON.stringify({ messages, options }),
+      // The Appwrite function expects the raw payload, not a named JSON key.
+      body: JSON.stringify(messages),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API Route Error:", response.status, errorText);
-      throw new Error(`API route returned status ${response.status}`);
+      const text = await response.text();
+      console.error("Groq proxy error:", response.status, text);
+      return null;
     }
 
-    const data = await response.json();
-
-    // We'll now expect the response to be in a "response" property.
-    if (data.response) {
-      return data.response;
+    const result = await response.json();
+    
+    const content = result?.choices?.[0]?.message?.content;
+    
+    if (typeof content === 'string') {
+        return content;
     }
-
+    
+    console.warn("Could not find content in Groq response. Full response:", result);
     return null;
-  } catch (error) {
-    console.error("Failed to call our /api/groq route:", error);
+    
+  } catch (error: any) {
+    console.error("Network or parsing error in callGroq:", error);
     return null;
   }
+}
+
+export async function generateGroqDeepInsight(
+    friends: any[], 
+    events: any[]
+): Promise<DeepInsight | null> {
+    const prompt = `
+        You are a relationship assistant AI. Analyze the following data about friends and their interactions (events).
+        Generate a "deep insight" about the user's social life.
+        The response MUST be ONLY a valid JSON object, without any markdown formatting, comments, or other text.
+        The JSON object must have the following structure: { "title": "Insight Title", "summary": "A 2-3 sentence summary.", "suggestions": ["suggestion 1", "suggestion 2"] }.
+        
+        DATA:
+        - Friends: ${JSON.stringify(friends)}
+        - Events: ${JSON.stringify(events)}
+    `;
+
+    const messages: GroqMessage[] = [{ role: 'system', content: prompt }];
+    
+    const insightJsonString = await callGroq(messages, { temperature: 0.2 });
+
+    if (typeof insightJsonString === 'string' && insightJsonString.trim().startsWith('{')) {
+        try {
+            const insight = JSON.parse(insightJsonString);
+            return insight as DeepInsight;
+        } catch (error) {
+            console.error("Failed to parse Groq deep insight JSON:", error, "\nReceived string:", insightJsonString);
+            return null;
+        }
+    }
+    
+    console.warn("[groq] Did not receive a valid JSON string for deep insight. Received:", insightJsonString);
+    return null;
+}
+
+export async function generateGroqChatCompletion(
+    friends: any[], 
+    events: any[], 
+    chatHistory: GroqMessage[]
+): Promise<string | null> {
+    const systemPrompt = `
+        You are a helpful and friendly relationship assistant. 
+        Your goal is to help the user understand their social life based on the data they provide.
+        Use the provided friend and event data to answer the user's questions.
+        Keep your answers conversational and concise.
+
+        DATA:
+        - Friends: ${JSON.stringify(friends)}
+        - Events: ${JSON.stringify(events)}
+    `;
+
+    const messages: GroqMessage[] = [
+        { role: 'system', content: systemPrompt },
+        ...chatHistory
+    ];
+    
+    const responseText = await callGroq(messages);
+    return responseText;
 }

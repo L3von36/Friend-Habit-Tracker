@@ -1,149 +1,63 @@
-import { semanticSearch } from './semanticSearch';
-import { generateId } from './id';
 import type { Friend, Event } from '@/types';
-import { callGroq, getGroqApiKey } from './groq';
-
-export interface DeepInsight {
-    focus: string;
-    insight: string;
-    tags: string[];
-    category: 'actionable' | 'positive' | 'warning';
-}
+import { type DeepInsight, generateGroqDeepInsight, generateGroqChatCompletion } from './groq';
 
 /**
- * Strips PII from friend/event data before analysis.
- * Names and descriptions are removed; only metadata is used.
+ * Anonymizes and summarizes friend and event data for privacy-preserving analysis.
+ * Replaces names with generic labels (e.g., "Friend 1") and trims data to essentials.
  */
-export function anonymizeData(friends: Friend[], events: Event[]) {
-    const anonymizedFriends = friends.map(f => ({
-        id: f.id,
-        level: f.level ?? 1,
-        xp: f.xp ?? 0,
-        streak: f.streak ?? 0,
-        relationship: f.relationship,
-        createdAt: f.createdAt,
-    }));
+function anonymizeAndSummarizeData(friends: Friend[], events: Event[]): { friends: any[], events: any[] } {
+    const idToAnonNameMap = new Map<string, string>();
+    let friendCounter = 1;
 
-    const anonymizedEvents = events.map(e => ({
-        id: e.id,
-        friendId: e.friendId,
-        category: e.category,
-        sentiment: e.sentiment,
-        date: e.date,
-        tags: e.tags,
-        importance: e.importance,
-        // Deliberately strip description/title to preserve privacy
-    }));
-
-    return { friends: anonymizedFriends, events: anonymizedEvents };
-}
-
-/**
- * Generates an insight using the powerful Groq Llama 3 API.
- */
-async function generateGroqDeepInsight(
-    anonFriends: { id: string, level: number, xp: number, streak: number, relationship: string, createdAt: string }[],
-    anonEvents: { id: string, friendId: string, category: string, sentiment: 'positive' | 'negative' | 'neutral', date: string, tags: string[], importance: number }[]
-): Promise<DeepInsight | null> {
-    const systemPrompt = `You are an expert relationship coach and psychological behavioral analyzer. 
-Analyze the provided anonymized friendship and event data. Your goal is to provide a single, highly actionable, deeply insightful "DeepInsight" about the user's social life.
-
-Identify an area that needs attention (e.g., a friend being neglected, too many negative events in a certain category, lack of recent interactions) OR highlight a strong positive trend (e.g., incredible momentum, strong support system).
-
-The JSON output MUST be strictly structured as follows:
-{
-  "focus": "Short snappy title (max 5 words) e.g., 'Reconnect with Friend #1234', 'Momentum Building'",
-  "insight": "A 2-3 sentence deep psychological or behavioral insight explaining what you see in the data and why it matters. Reference the data generically.",
-  "tags": ["3-4 relevant single-word tags", "e.g.", "outreach", "consistency"],
-  "category": "actionable" // must be one of: "actionable", "positive", "warning"
-}`;
-
-    const userPrompt = `Friends Data:
-${JSON.stringify(anonFriends, null, 2)}
-
-Events Data:
-${JSON.stringify(anonEvents, null, 2)}
-
-Analyze this and provide exactly the JSON matching the DeepInsight schema.`;
-
-    const response = await callGroq([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-    ], {
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.6,
-        response_format: { type: 'json_object' }
+    // Create a map from friend ID to an anonymous name
+    friends.forEach(friend => {
+        if (!idToAnonNameMap.has(friend.id)) {
+            idToAnonNameMap.set(friend.id, `Friend ${friendCounter++}`);
+        }
     });
 
-    if (!response) return null;
+    const anonSummarizedFriends = friends.map(friend => ({
+        name: idToAnonNameMap.get(friend.id)!,
+        relationship: friend.relationship,
+        level: friend.level,
+        streak: friend.streak,
+        traits: friend.traits,
+    }));
 
-    try {
-        const parsed = JSON.parse(response) as DeepInsight;
-        return parsed;
-    } catch (err) {
-        console.error('Failed to parse Groq DeepInsight JSON:', err);
-        return null;
-    }
+    // Take the 100 most recent events for analysis to keep payload small
+    const recentEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 100);
+
+    const anonSummarizedEvents = recentEvents.map(event => ({
+        friendName: idToAnonNameMap.get(event.friendId),
+        category: event.category,
+        sentiment: event.sentiment,
+        date: event.date.substring(0, 10), // Only send date, not time
+        description: event.description.substring(0, 50) + (event.description.length > 50 ? '...' : '') // Truncate long descriptions
+    }));
+
+    return { friends: anonSummarizedFriends, events: anonSummarizedEvents };
 }
 
+
 /**
- * Runs analysis either dynamically through Groq cloud (if API key provided)
- * or via local MiniLM-L6-v2 in the browser via the semantic search worker.
+ * Runs analysis exclusively through Groq cloud.
  */
 export async function requestDeepAnalysis(
     friends: Friend[],
     events: Event[]
 ): Promise<DeepInsight | null> {
     try {
-        const { friends: anonFriends, events: anonEvents } = anonymizeData(friends, events);
-
-        // 1. Try Groq Cloud first if API key exists
-        if (getGroqApiKey()) {
-            const groqInsight = await generateGroqDeepInsight(anonFriends, anonEvents);
-            if (!groqInsight) {
-                console.warn('Groq analysis failed, returning null to bypass local AI.');
-            }
-            return groqInsight;
+        // Use the new summarizing and anonymizing function
+        const { friends: anonFriends, events: anonEvents } = anonymizeAndSummarizeData(friends, events);
+        
+        const groqInsight = await generateGroqDeepInsight(anonFriends, anonEvents);
+        
+        if (!groqInsight) {
+            console.warn('[intelligence] Groq analysis did not return a valid insight. This might be due to a temporary service issue.');
         }
 
-        // 2. Fallback to Local Semantic Worker
-        return await new Promise<DeepInsight | null>((resolve) => {
-            const requestId = generateId();
-            const worker = (semanticSearch as any).worker as Worker | null;
+        return groqInsight;
 
-            if (!worker) {
-                console.warn('Semantic worker not available');
-                resolve(null);
-                return;
-            }
-
-            const handler = (event: MessageEvent) => {
-                const { type, payload, requestId: rid } = event.data;
-                if (rid !== requestId) return;
-
-                if (type === 'analyze_complete') {
-                    worker.removeEventListener('message', handler);
-                    resolve(payload as DeepInsight);
-                } else if (type === 'error') {
-                    worker.removeEventListener('message', handler);
-                    console.error('Worker analysis error:', payload);
-                    resolve(null);
-                }
-            };
-
-            worker.addEventListener('message', handler);
-            worker.postMessage({
-                type: 'analyze',
-                payload: { friends: anonFriends, events: anonEvents },
-                requestId,
-            });
-
-            // Timeout safety: resolve null after 30s
-            setTimeout(() => {
-                worker.removeEventListener('message', handler);
-                resolve(null);
-            }, 30_000);
-        });
     } catch (error) {
         console.error('Deep analysis failed:', error);
         return null;
@@ -151,41 +65,22 @@ export async function requestDeepAnalysis(
 }
 
 /**
- * Parses a raw voice dictation transcript into a structured Event object using Groq.
+ * Generates a chat completion exclusively through the Groq API.
  */
-export async function parseEventDictation(transcript: string): Promise<Partial<Event> | null> {
-    if (!getGroqApiKey()) {
-        console.warn('Groq API key required for voice parsing.');
-        return null;
-    }
-
-    const systemPrompt = `You are an AI assistant that extracts event details from a user's voice dictation.
-You must return a raw JSON object matching this schema:
-{
-  "title": "A concise title (max 5 words)",
-  "description": "A polished version of the transcript, fixing grammar. CRITICAL: Maintain the FIRST-PERSON perspective. If the user says 'I called', write 'I called', NOT 'the speaker called' or 'the user called'. Keep 'I', 'me', and 'my' intact.",
-  "category": "Pick exactly one from this list: 'behavior', 'reaction', 'habit', 'interaction', 'mood', 'conflict', 'gratitude'. Pick the closest match.",
-  "sentiment": "one of: 'positive', 'neutral', 'negative'",
-  "tags": ["1-3 single word lower-case tags"]
-}
-Only output the JSON object, nothing else.`;
-
-    const userPrompt = `Transcript: "${transcript}"`;
-
+export async function requestChatCompletion(
+    friends: Friend[],
+    events: Event[],
+    chatHistory: { role: 'user' | 'assistant', content: string }[]
+): Promise<string | null> {
     try {
-        const response = await callGroq([
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-        ], {
-            model: 'llama-3.1-8b-instant',
-            temperature: 0.2,
-            response_format: { type: 'json_object' }
-        });
-
-        if (!response) return null;
-        return JSON.parse(response) as Partial<Event>;
-    } catch (e) {
-        console.error('Failed to parse dictation:', e);
+        // Chat also benefits from this summarization
+        const { friends: anonFriends, events: anonEvents } = anonymizeAndSummarizeData(friends, events);
+        const content = await generateGroqChatCompletion(anonFriends, anonEvents, chatHistory);
+        return content;
+    } catch (error) {
+        console.error('Chat completion failed:', error);
         return null;
     }
 }
+export type { DeepInsight };
+

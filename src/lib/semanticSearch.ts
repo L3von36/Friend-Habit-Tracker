@@ -1,204 +1,62 @@
-import { env } from '@xenova/transformers';
-import { generateId } from './id';
-import { getGroqApiKey } from './groq';
-
-// Allow local models if provided by the app and enable browser cache
-env.allowLocalModels = true;
-env.useBrowserCache = true;
+import type { Friend } from '@/types';
+import { callGroq } from './groq';
+import type { GroqMessage } from './groq';
 
 class SemanticSearchService {
-  private static instance: SemanticSearchService;
-  public worker: Worker | null = null;
-  private progressListeners: ((progress: any) => void)[] = [];
-  public initializationProgress = 0;
-  public status: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
-  // store latest app data for worker RPC
-  private friends: any[] = [];
-  private events: any[] = [];
-  private memories: any[] = [];
-
-  private constructor() {
-    if (typeof window !== 'undefined') {
-      this.worker = new Worker(new URL('./semanticWorker.ts', import.meta.url), {
-        type: 'module',
-      });
-
-      console.info('[semanticSearch] worker created', this.worker);
-
-      this.worker.onmessage = (event: MessageEvent) => {
-        console.debug('[semanticSearch] worker -> main', event.data);
-        const { type, payload } = event.data;
-        if (type === 'init_progress') {
-          if (payload.status === 'progress') {
-            this.initializationProgress = payload.progress;
-          }
-          this.progressListeners.forEach(l => l(payload));
-          console.debug('[semanticSearch] init_progress', payload);
-        }
-        if (type === 'init_complete') {
-          this.status = 'ready';
-          this.initializationProgress = 100;
-          this.progressListeners.forEach(l => l({ status: 'done', progress: 100 }));
-          console.info('[semanticSearch] init_complete');
-        }
-        if (type === 'error') {
-          this.status = 'error';
-          this.progressListeners.forEach(l => l({ status: 'error', message: payload }));
-          console.error('[semanticSearch] worker error', payload);
-        }
-        // Worker requests app context (RPC)
-        if (type === 'request_context') {
-          try {
-            const { requestId, payload: req } = event.data;
-            console.debug('[semanticSearch] request_context', { requestId, req });
-            if (!req || !req.action) return;
-            // lazy import mcpAdapter to avoid circular deps
-            import('./mcpAdapter').then(mod => {
-              if (req.action === 'getFriendContext') {
-                const friendId = req.friendId;
-                const friend = this.friends.find((f: any) => f.id === friendId);
-                const friendEvents = this.events.filter((e: any) => e.friendId === friendId);
-                const friendMemories = this.memories.filter((m: any) => m.friendId === friendId);
-                const context = mod.buildFriendContext(friend, friendEvents, friendMemories);
-                this.worker?.postMessage({ type: 'request_context_response', requestId, payload: context });
-                return;
-              }
-
-              if (req.action === 'listFriends') {
-                const out = mod.listFriends(this.friends);
-                this.worker?.postMessage({ type: 'request_context_response', requestId, payload: out });
-                return;
-              }
-
-              if (req.action === 'getFriendById') {
-                const friend = mod.getFriendById(this.friends, req.friendId);
-                this.worker?.postMessage({ type: 'request_context_response', requestId, payload: friend });
-                return;
-              }
-
-              if (req.action === 'queryEvents') {
-                const out = mod.queryEvents(this.events, req.opts || {});
-                this.worker?.postMessage({ type: 'request_context_response', requestId, payload: out });
-                return;
-              }
-
-              if (req.action === 'queryMemories') {
-                const out = mod.queryMemories(this.memories, req.opts || {});
-                this.worker?.postMessage({ type: 'request_context_response', requestId, payload: out });
-                return;
-              }
-            }).catch(err => {
-              this.worker?.postMessage({ type: 'error', payload: String(err), requestId });
-            });
-          } catch (err) {
-            console.error('[semanticSearch] Failed to handle request_context from worker', err);
-          }
-        }
-      };
-    }
+  constructor() {
+    console.log('[semanticSearch] Service initialized (Groq mode)');
   }
 
-  // Optional: set a local model path (folder or model id). When set, `initialize()` will send it to the worker.
-  private modelPath: string | null = null;
-  public setLocalModelPath(path: string) {
-    this.modelPath = path;
-    console.info('[semanticSearch] local model path set', path);
-  }
-
-  public updateData(data: { friends?: any[]; events?: any[]; memories?: any[] }) {
-    if (data.friends) this.friends = data.friends;
-    if (data.events) this.events = data.events;
-    if (data.memories) this.memories = data.memories;
-  }
-
-  public addProgressListener(listener: (progress: any) => void) {
-    this.progressListeners.push(listener);
-    return () => {
-      this.progressListeners = this.progressListeners.filter(l => l !== listener);
-    };
-  }
-
-  public static getInstance(): SemanticSearchService {
-    if (!SemanticSearchService.instance) {
-      SemanticSearchService.instance = new SemanticSearchService();
-    }
-    return SemanticSearchService.instance;
-  }
-
-  public async indexData(documents: any[]): Promise<void> {
-    if (getGroqApiKey() || !this.worker) return;
-
-    return new Promise((resolve) => {
-      const id = generateId();
-
-      const handler = (event: MessageEvent) => {
-        const { type, requestId } = event.data;
-        if (type === 'index_complete' && requestId === id) {
-          this.worker?.removeEventListener('message', handler);
-          resolve();
-        }
-      };
-
-      this.worker?.addEventListener('message', handler);
-
-      console.debug('[semanticSearch] main -> worker', { type: 'index', requestId: id, documentsCount: documents.length });
-      this.worker?.postMessage({ type: 'index', payload: { documents }, requestId: id });
-    });
-  }
-
-  public async search(query: string, topK = 5): Promise<any[]> {
-    if (getGroqApiKey() || !this.worker) return [];
-
-    return new Promise((resolve) => {
-      const id = generateId();
-
-      const handler = (event: MessageEvent) => {
-        const { type, payload, requestId } = event.data;
-        if (type === 'search_results' && requestId === id) {
-          this.worker?.removeEventListener('message', handler);
-          resolve(payload);
-        }
-      };
-
-      this.worker?.addEventListener('message', handler);
-
-      console.debug('[semanticSearch] main -> worker', { type: 'search', requestId: id, query, topK });
-      // Remove 'documents' from payload, assuming pre-indexed
-      this.worker?.postMessage({ type: 'search', payload: { query, topK }, requestId: id });
-    });
-  }
-
-  public initialize() {
-    if (this.status === 'ready') {
-      console.debug('[semanticSearch] initialize skipped — already ready');
-      return;
-    }
-    if (this.status === 'loading') {
-      console.debug('[semanticSearch] initialize skipped — already loading');
-      return;
-    }
-    this.status = 'loading';
-
-    // Bypass local model loading entirely if Groq cloud AI is configured
-    if (getGroqApiKey()) {
-      console.info('[semanticSearch] Groq API enabled, bypassing local MiniLM models.');
-      this.status = 'ready';
-      this.initializationProgress = 100;
-      this.progressListeners.forEach(l => l({ status: 'done', progress: 100 }));
-      return;
+  /**
+   * Performs a semantic search for friends using the Groq API.
+   * @param query The user's search query.
+   * @param friends The list of all friends to search through.
+   * @returns A promise that resolves to an array of matching Friend objects.
+   */
+  async search(query: string, friends: Friend[]): Promise<Friend[]> {
+    if (!query.trim() || friends.length === 0) {
+      return [];
     }
 
-    console.debug('[semanticSearch] main -> worker', { type: 'init', modelPath: this.modelPath });
-    this.worker?.postMessage({ type: 'init', payload: { modelPath: this.modelPath } });
-  }
+    const friendDataForPrompt = friends.map(f => ({
+        name: f.name,
+        traits: f.traits.join(', ')
+    }));
 
-  public enableLogging() {
-    console.info('[semanticSearch] logging enabled');
-  }
+    const prompt = `
+      You are a smart search engine. Your task is to find the most relevant friends from a provided JSON list based on a user's search query.
+      Your response MUST be a JSON array containing the exact names of the matching friends, ordered by relevance.
+      Do not include any commentary or introductory text. The output must be only the JSON array of names.
+      Example response format: ["John Doe", "Jane Smith"]
 
-  public disableLogging() {
-    console.info('[semanticSearch] logging disabled');
+      User Query: "${query}"
+      Friends List (JSON): ${JSON.stringify(friendDataForPrompt)}
+    `;
+
+    try {
+      const messages: GroqMessage[] = [{ role: 'system', content: prompt }];
+      
+      // We expect the Groq API to return an array of strings (friend names)
+      const friendNames = await callGroq(messages, { response_format: { type: 'json_object' } });
+
+      if (!Array.isArray(friendNames)) {
+        console.warn('[semanticSearch] Groq did not return a valid array of names.', friendNames);
+        return [];
+      }
+
+      // Map the returned names back to the original Friend objects
+      const friendMap = new Map(friends.map(friend => [friend.name, friend]));
+      const matchedFriends = (friendNames as string[])
+        .map(name => friendMap.get(name))
+        .filter((friend): friend is Friend => friend !== undefined);
+      
+      return matchedFriends;
+
+    } catch (error) {
+      console.error('[semanticSearch] An error occurred during the Groq-based search:', error);
+      return [];
+    }
   }
 }
 
-export const semanticSearch = SemanticSearchService.getInstance();
+export const semanticSearch = new SemanticSearchService();

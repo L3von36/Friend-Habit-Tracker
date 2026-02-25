@@ -33,6 +33,7 @@ export default defineConfig({
       },
     }),
   ],
+  assetsInclude: ["**/*.safetensors", "**/*.json", "**/*.txt"],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -40,6 +41,14 @@ export default defineConfig({
         __dirname,
         "./node_modules/@exodus/bytes/dist/bundles/bytes.cjs.js"
       ),
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 });

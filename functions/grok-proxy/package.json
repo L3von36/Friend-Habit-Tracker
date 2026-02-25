@@ -1,0 +1,7 @@
+{
+  "name": "grok-proxy-function",
+  "version": "1.0.0",
+  "description": "A secure Appwrite proxy for the Groq API.",
+  "main": "index.js",
+  "type": "module"
+}
