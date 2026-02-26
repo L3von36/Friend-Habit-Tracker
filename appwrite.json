@@ -1,7 +1,7 @@
 {
     "functions": [
         {
-            "$id": "grok-proxy",
+            "$id": "699e12e4001d8b2c0ac6",
             "name": "grok-proxy",
             "runtime": "node-18.0",
             "provider": "",
