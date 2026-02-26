@@ -1,20 +1,18 @@
 const Groq = require('groq-sdk');
 
 module.exports = async ({ req, res, log, error }) => {
-  const origin = req.headers['origin'] || '*';
-
   const corsHeaders = {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Appwrite-Project, X-Appwrite-Key, X-Appwrite-Session, X-SDK-Version, X-SDK-Name',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Appwrite-Project, X-Appwrite-Key, X-Appwrite-Session, X-SDK-Version, X-SDK-Name, Authorization',
     'Access-Control-Max-Age': '86400',
     'Access-Control-Allow-Credentials': 'true'
   };
 
-  log(`Request method: ${req.method} from origin: ${origin}`);
+  log(`Handling ${req.method} request`);
 
   if (req.method === 'OPTIONS') {
-    return res.send('', 204, corsHeaders);
+    return res.send('', 200, corsHeaders);
   }
 
   try {
@@ -28,25 +26,33 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ error: 'Server configuration error.' }, 500, corsHeaders);
     }
 
-    let messages = req.body.messages;
-    if (!messages && Array.isArray(req.body)) {
-      messages = req.body;
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        log('Request body is a string but not valid JSON');
+      }
+    }
+
+    let messages = body?.messages;
+    if (!messages && Array.isArray(body)) {
+      messages = body;
     }
 
     if (!messages || !Array.isArray(messages)) {
-      log('Invalid request body: ' + JSON.stringify(req.body));
+      log('Invalid request body: missing messages array');
       return res.json({ error: "Invalid request: Missing 'messages' array." }, 400, corsHeaders);
     }
 
-    log(`Calling Groq API with model: ${req.body.model || 'llama3-8b-8192'}`);
     const groq = new Groq({ apiKey });
     
     const chatCompletion = await groq.chat.completions.create({
       messages: messages,
-      model: req.body.model || 'llama3-8b-8192',
-      temperature: req.body.temperature ?? 0.7,
-      max_tokens: req.body.max_tokens,
-      response_format: req.body.response_format,
+      model: body?.model || 'llama3-8b-8192',
+      temperature: body?.temperature ?? 0.7,
+      max_tokens: body?.max_tokens,
+      response_format: body?.response_format,
     });
 
     log('Groq API call successful');

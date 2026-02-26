@@ -1,4 +1,3 @@
-
 export interface GroqMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -17,44 +16,52 @@ export interface DeepInsight {
     tags: string[];
 }
 
-const APPWRITE_PROXY_URL = "https://699e12e4001d8b2c0ac6.fra.appwrite.run/";
+// Using the official Appwrite API endpoint which is verified to support CORS correctly
+const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1/functions/699e12e4001d8b2c0ac6/executions";
+const APPWRITE_PROJECT_ID = "699e11a60026f012f35b";
 
 async function callGroq(
   messages: GroqMessage[],
   options: GroqOptions = {}
 ): Promise<string | null> {
   try {
-    const response = await fetch(APPWRITE_PROXY_URL, {
+    const response = await fetch(APPWRITE_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-Appwrite-Project": APPWRITE_PROJECT_ID,
       },
       body: JSON.stringify({
-        messages,
-        ...options
+        async: false, // Execute synchronously to get the response immediately
+        body: JSON.stringify({
+          messages,
+          ...options
+        })
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("Groq proxy error:", response.status, text);
+      console.error("Appwrite Function error:", response.status, text);
       return null;
     }
 
-    const result = await response.json();
+    const execution = await response.json();
     
-    // Support both the extracted message from proxy and the full choices array
+    // Appwrite returns the function's output in the responseBody field
+    if (execution.status === 'failed') {
+        console.error("Function execution failed:", execution.errors);
+        return null;
+    }
+
+    const result = JSON.parse(execution.responseBody || '{}');
     const content = result.message || result?.choices?.[0]?.message?.content;
     
     if (typeof content === 'string') {
-        // If the content itself looks like a debug message or a common error, log it
-        if (content.includes("CORS") || content.length < 5) {
-            console.warn("Received suspicious content from Groq proxy:", content);
-        }
         return content;
     }
     
-    console.warn("Could not find content in Groq response. Full response:", result);
+    console.warn("Could not find content in Groq response. Full result:", result);
     return null;
     
   } catch (error: any) {
@@ -87,24 +94,17 @@ export async function generateGroqDeepInsight(
 
     if (typeof insightJsonString === 'string') {
         try {
-            // Clean up possible markdown formatting if the model ignored instructions
             const cleanedJson = insightJsonString.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-
-            // If the string doesn't look like JSON at all, it might be a direct message or an error
             if (!cleanedJson.startsWith('{')) {
                 console.warn("[groq] Received non-JSON response for deep insight. Response:", cleanedJson);
                 return null;
             }
-
-            const insight = JSON.parse(cleanedJson);
-            return insight as DeepInsight;
+            return JSON.parse(cleanedJson);
         } catch (error) {
             console.error("Failed to parse Groq deep insight JSON:", error, "\nReceived string:", insightJsonString);
             return null;
         }
     }
-    
-    console.warn("[groq] Did not receive a valid string for deep insight. Received:", insightJsonString);
     return null;
 }
 
@@ -129,8 +129,7 @@ export async function generateGroqChatCompletion(
         ...chatHistory
     ];
     
-    const responseText = await callGroq(messages);
-    return responseText;
+    return await callGroq(messages);
 }
 
 export { callGroq };
